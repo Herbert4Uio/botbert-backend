@@ -21,7 +21,7 @@ export class Order extends Document {
   @Prop({ type: Types.ObjectId, ref: 'Tenant', required: true })
   tenantId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Branch', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'Branch', required: false })
   branchId: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'Customer', required: true })

@@ -206,7 +206,7 @@ export class SalesService implements OnModuleInit {
          -> REGLA DE AMBIGÜEDAD: Si la búsqueda devuelve varios productos similares, preséntale las opciones (Omitiendo los códigos internos) al cliente de forma breve y pregúntale cuál prefiere.
       PASO 3: Envío o Recojo.
          -> REGLA DE SUCURSALES (RECOJO): Si el cliente elige recojo, DEBES ofrecerle SOLO las sucursales listadas arriba que correspondan a su ciudad previamente indicada. Si la sucursal indicada está en otra ciudad, NO se la ofrezcas a menos que el cliente explícitamente lo pida. Si no hay sucursales en su ciudad, infórmaselo.
-         -> Si es envío: Pregunta la dirección de entrega exacta y rango de hora preferido.
+         -> Si es envío: Pregunta la dirección de entrega exacta (pueden enviar su ubicación de Google Maps) y rango de hora preferido.
       PASO 4: Método de pago (QR, Efectivo, Transferencia) y momento (AHORA o AL RECIBIR/RECOGER).
       PASO 5: Datos factura (Nombre completo y NIT/Documento). Si el cliente olvidó alguno de estos datos, pídeselo de nuevo.
       PASO 6: Confirmación Final ("¿Todo correcto para generar tu orden con X, Y, Z...?").
@@ -245,7 +245,7 @@ export class SalesService implements OnModuleInit {
                 branchName: { type: "string", description: "Si es RECOJO, el nombre exacto de la sucursal elegida. Si es ENVIO, pon 'N/A'." },
                 shippingDate: { type: "string", description: "Fecha EXACTA de envío/recojo en formato YYYY-MM-DD (Calculada según la FECHA ACTUAL)." },
                 shippingTimeRange: { type: "string", description: "Rango de hora de entrega (ej. 10am-12pm, Tarde, N/A)." },
-                shippingAddress: { type: "string", description: "Dirección de envío exacta (o 'Misma sucursal' si es recojo)." },
+                shippingAddress: { type: "string", description: "Dirección de envío exacta o URL de Google Maps (o 'Misma sucursal' si es recojo)." },
                 shippingInstructions: { type: "string", description: "Recomendaciones o instrucciones de entrega (o 'Ninguna' si no hay)." },
                 billingName: { type: "string", description: "Nombre completo del cliente para la factura." },
                 billingNit: { type: "string", description: "NIT o documento del cliente (o 'S/N' si no proporcionó)." },
