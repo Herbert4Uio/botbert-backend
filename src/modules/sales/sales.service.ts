@@ -109,28 +109,38 @@ export class SalesService implements OnModuleInit {
         assistantResponse = aiMessage.content;
 
         if (aiMessage.tool_calls && aiMessage.tool_calls.length > 0) {
-          const toolCall = aiMessage.tool_calls[0];
-          const args = JSON.parse(toolCall.function.arguments);
-          this.logger.log(`🛠️ IA invocó la herramienta: ${toolCall.function.name}`);
+          messages.push(aiMessage);
           
-          if (toolCall.function.name === 'buscar_productos') {
-            const resultText = await this.salesToolsService.handleProductSearch(args, tenantObjectId, conversation);
-            messages.push(aiMessage);
-            messages.push({ role: 'tool', tool_call_id: toolCall.id, content: resultText });
+          let orderGenerated = false;
+
+          for (const toolCall of aiMessage.tool_calls) {
+            const args = JSON.parse(toolCall.function.arguments);
+            this.logger.log(`🛠️ IA invocó la herramienta: ${toolCall.function.name}`);
+            
+            if (toolCall.function.name === 'buscar_productos') {
+              const resultText = await this.salesToolsService.handleProductSearch(args, tenantObjectId, conversation);
+              messages.push({ role: 'tool', tool_call_id: toolCall.id, content: resultText });
+            }
+            else if (toolCall.function.name === 'actualizar_resumen_venta') {
+              const resultText = await this.salesToolsService.handleUpdateSummary(args, conversation);
+              messages.push({ role: 'tool', tool_call_id: toolCall.id, content: resultText });
+              currentTools = currentTools.filter(t => t.function.name !== 'actualizar_resumen_venta');
+            } 
+            else if (toolCall.function.name === 'generar_orden') {
+              const result = await this.salesToolsService.handleGenerateOrder(
+                args, tenantObjectId, tenant, branches, customer, conversation, jid
+              );
+              assistantResponse = result.message;
+              orderGenerated = true;
+              // Rompemos el ciclo de herramientas porque ya generamos la orden
+              break; 
+            }
           }
-          else if (toolCall.function.name === 'actualizar_resumen_venta') {
-            const resultText = await this.salesToolsService.handleUpdateSummary(args, conversation);
-            messages.push(aiMessage);
-            messages.push({ role: 'tool', tool_call_id: toolCall.id, content: resultText });
-            currentTools = currentTools.filter(t => t.function.name !== 'actualizar_resumen_venta');
-            continue;
-          } 
-          else if (toolCall.function.name === 'generar_orden') {
-            const result = await this.salesToolsService.handleGenerateOrder(
-              args, tenantObjectId, tenant, branches, customer, conversation, jid
-            );
-            assistantResponse = result.message;
+
+          if (orderGenerated) {
             break;
+          } else {
+            continue;
           }
         } else {
           // Sin tool calls, terminamos iteraciones
@@ -296,10 +306,10 @@ export class SalesService implements OnModuleInit {
       [FLUJO DE COMPRA LÓGICO]
       PASO 1: Descubrir ciudad. NUNCA ofrezcas productos ni des precios sin saber la ciudad. Tu PRIMERA pregunta debe ser: "¿Desde qué ciudad nos contactas?".
       PASO 2: Descubrir producto(s) (buscar_productos). DEBES usar la ciudad del cliente en tu búsqueda.
-         -> REGLA DE AMBIGÜEDAD: Si la búsqueda devuelve varios productos similares, preséntale las opciones (Omitiendo los códigos internos) al cliente de forma breve y pregúntale cuál prefiere.
+        -> REGLA DE AMBIGÜEDAD: Si la búsqueda devuelve varios productos similares, preséntale las opciones (Omitiendo los códigos internos) al cliente de forma breve y pregúntale cuál prefiere.
       PASO 3: Envío o Recojo.
-         -> REGLA DE SUCURSALES (RECOJO): Si el cliente elige recojo, DEBES ofrecerle SOLO las sucursales listadas arriba que correspondan a su ciudad previamente indicada. Si la sucursal indicada está en otra ciudad, NO se la ofrezcas a menos que el cliente explícitamente lo pida. Si no hay sucursales en su ciudad, infórmaselo.
-         -> Si es envío: Pregunta la dirección de entrega exacta (pueden enviar su ubicación de Google Maps) y rango de hora preferido.
+        -> REGLA DE SUCURSALES (RECOJO): Si el cliente elige recojo, DEBES ofrecerle SOLO las sucursales listadas arriba que correspondan a su ciudad previamente indicada. Si la sucursal indicada está en otra ciudad, NO se la ofrezcas a menos que el cliente explícitamente lo pida. Si no hay sucursales en su ciudad, infórmaselo.
+        -> Si es envío: Pregunta la dirección de entrega exacta (pueden enviar su ubicación de Google Maps) y rango de hora preferido.
       PASO 4: Método de pago (QR, Efectivo, Transferencia) y momento (AHORA o AL RECIBIR/RECOGER).
       PASO 5: Datos factura (Nombre completo y NIT/Documento). Si el cliente olvidó alguno de estos datos, pídeselo de nuevo.
       PASO 6: Confirmación Final ("¿Todo correcto para generar tu orden con X, Y, Z...?").

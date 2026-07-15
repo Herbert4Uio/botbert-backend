@@ -109,31 +109,31 @@ export class SalesToolsService {
 
     let resultText = "Resultados de la búsqueda (Catálogo interno):\n";
     if (searchResults.length > 0) {
-       this.logger.debug(`✅ Encontrados ${searchResults.length} productos en la BD.`);
-       
-       conversation.lastSearchResults = searchResults.map(p => p._id);
-       await conversation.save();
+      this.logger.debug(`✅ Encontrados ${searchResults.length} productos en la BD.`);
 
-       searchResults.forEach((p: any, index: number) => {
-         let matchedPrice = null;
-         if (p.prices && p.prices.length > 0) {
-           const regexCity = new RegExp(args.customerCity, 'i');
-           const priceObj = p.prices.find((pr: any) => pr.cityId && pr.cityId.name && regexCity.test(pr.cityId.name));
-           if (priceObj) {
-             matchedPrice = priceObj.price;
-           }
-         }
-         const optionId = (index + 1).toString();
-         const weightInfo = p.weight ? ` (Peso: ${p.weight})` : '';
-         if (matchedPrice !== null) {
+      conversation.lastSearchResults = searchResults.map(p => p._id);
+      await conversation.save();
+
+      searchResults.forEach((p: any, index: number) => {
+        let matchedPrice = null;
+        if (p.prices && p.prices.length > 0) {
+          const regexCity = new RegExp(args.customerCity, 'i');
+          const priceObj = p.prices.find((pr: any) => pr.cityId && pr.cityId.name && regexCity.test(pr.cityId.name));
+          if (priceObj) {
+            matchedPrice = priceObj.price;
+          }
+        }
+        const optionId = (index + 1).toString();
+        const weightInfo = p.weight ? ` (Peso: ${p.weight})` : '';
+        if (matchedPrice !== null) {
             resultText += `- [Opción: ${optionId}] ${p.name}${weightInfo}: $${matchedPrice}. ${p.description}\n`;
-         } else {
+        } else {
             resultText += `- [Opción: ${optionId}] ${p.name}${weightInfo}: (No disponible para esta ciudad). ${p.description}\n`;
-         }
-       });
+        }
+      });
     } else {
-       this.logger.debug(`❌ No se encontraron productos.`);
-       resultText = "No se encontraron productos exactos con ese término. Puedes sugerirle al cliente que intente otra palabra clave o pregúntale de otra forma.";
+      this.logger.debug(`❌ No se encontraron productos.`);
+      resultText = "No se encontraron productos exactos con ese término. Puedes sugerirle al cliente que intente otra palabra clave o pregúntale de otra forma.";
     }
 
     return resultText;
@@ -234,14 +234,14 @@ export class SalesToolsService {
     // Validación de Sucursal para Recojo
     let selectedBranchId = null;
     if (isOrderValid && args.deliveryType === 'RECOJO') {
-       const branchRegex = new RegExp(args.branchName, 'i');
-       const matchedBranch = branches.find(b => branchRegex.test(b.name));
-       if (!matchedBranch) {
-         isOrderValid = false;
-         validationErrorMsg = `No pude encontrar la sucursal "${args.branchName}". Por favor, verifica el nombre y confírmame.`;
-       } else {
-         selectedBranchId = matchedBranch._id;
-       }
+      const branchRegex = new RegExp(args.branchName, 'i');
+      const matchedBranch = branches.find(b => branchRegex.test(b.name));
+      if (!matchedBranch) {
+        isOrderValid = false;
+        validationErrorMsg = `No pude encontrar la sucursal "${args.branchName}". Por favor, verifica el nombre y confírmame.`;
+      } else {
+        selectedBranchId = matchedBranch._id;
+      }
     }
 
     // Validación de Productos y Precios del Servidor
