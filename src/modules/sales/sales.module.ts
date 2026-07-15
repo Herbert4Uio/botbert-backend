@@ -12,6 +12,7 @@ import { OrderModule } from '../order/order.module';
 import { TenantModule } from '../tenant/tenant.module';
 
 import { SalesController } from './sales.controller';
+import { SalesToolsService } from './sales-tools.service';
 
 @Module({
   imports: [
@@ -28,7 +29,7 @@ import { SalesController } from './sales.controller';
     OrderModule,
   ],
   controllers: [SalesController],
-  providers: [SalesService],
+  providers: [SalesService, SalesToolsService],
   exports: [MongooseModule, SalesService],
 })
 export class SalesModule {}
