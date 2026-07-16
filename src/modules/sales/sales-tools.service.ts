@@ -294,13 +294,24 @@ export class SalesToolsService {
         } catch(e) {}
 
         if (!productDb) {
-          // Fallback: Buscar por nombre exacto o regex si el productId enviado es un texto
-          let cleanName = productId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escapar regex
-          let regexName = new RegExp(cleanName, 'i');
+          // Fallback 1: Buscar por regex exacto o parcial
+          let cleanName = productId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           productDb = await this.productModel.findOne({
             tenantId: tenantObjectId,
-            name: regexName
+            name: new RegExp(cleanName, 'i')
           }).populate('prices.cityId');
+        }
+
+        if (!productDb) {
+          // Fallback 2: Búsqueda $text (Fuzzy)
+          const searchResults = await this.productModel.find(
+            { tenantId: tenantObjectId, $text: { $search: productId }, isActive: true },
+            { score: { $meta: "textScore" } }
+          ).sort({ score: { $meta: "textScore" } }).limit(1).populate('prices.cityId');
+          
+          if (searchResults.length > 0) {
+            productDb = searchResults[0];
+          }
         }
 
         if (productDb) {
