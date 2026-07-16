@@ -21,14 +21,15 @@ export class SalesToolsService {
         type: "function",
         function: {
           name: "buscar_productos",
-          description: "Busca productos en la base de datos de la sucursal por palabras clave. Úsalo SIEMPRE que el cliente pregunte por un producto, pida ver opciones o quiera saber precios.",
+          description: "Busca productos en la base de datos. Úsalo SIEMPRE que el cliente pregunte por un producto, pida ver opciones o busque por una ocasión específica.",
           parameters: {
             type: "object",
             properties: {
-              query: { type: "string", description: "El término de búsqueda (ej. 'chocolate', 'almendra', 'granel', 'regalo')." },
-              customerCity: { type: "string", description: "La ciudad que el cliente mencionó (ej. 'La Paz'). OBLIGATORIO para buscar precios correctos." }
+              query: { type: "string", description: "El término de búsqueda de texto libre (ej. 'chocolate', 'almendra', 'caja'). Usa string vacío '' si vas a buscar solo por ocasión." },
+              occasionTag: { type: "string", description: "Una de las ocasiones exactas que se te proporcionaron en el contexto (ej. 'Regalo', 'Día de la Madre')." },
+              customerCity: { type: "string", description: "La ciudad que el cliente mencionó (ej. 'Cochabamba'). OBLIGATORIO para buscar precios correctos." }
             },
-            required: ["query", "customerCity"]
+            required: ["customerCity"]
           }
         }
       },
@@ -85,24 +86,39 @@ export class SalesToolsService {
   }
 
   async handleProductSearch(args: any, tenantObjectId: Types.ObjectId, conversation: any): Promise<string> {
-    this.logger.log(`🔍 Buscando productos con query: "${args.query}" para ciudad "${args.customerCity}"`);
+    this.logger.log(`🔍 Buscando productos con query: "${args.query || ''}", occasion: "${args.occasionTag || ''}" para ciudad "${args.customerCity}"`);
     
-    let searchResults = await this.productModel.find(
-      { tenantId: tenantObjectId, isActive: true, $text: { $search: args.query } },
-      { score: { $meta: "textScore" } }
-    )
-    .populate('prices.cityId')
-    .sort({ score: { $meta: "textScore" } })
-    .limit(10);
+    let filter: any = { tenantId: tenantObjectId, isActive: true };
+    
+    if (args.occasionTag && args.occasionTag.trim() !== '') {
+      filter.occasions = new RegExp('^' + args.occasionTag + '$', 'i');
+    }
+    
+    if (args.query && args.query.trim() !== '') {
+      filter.$text = { $search: args.query };
+    }
 
-    if (searchResults.length === 0) {
-      this.logger.warn(`⚠️ Búsqueda $text falló, intentando con Regex fallback...`);
-      const regex = new RegExp(args.query.split(' ').join('|'), 'i');
-      searchResults = await this.productModel.find({
-        tenantId: tenantObjectId, 
-        isActive: true, 
-        $or: [ { name: regex }, { keywords: regex } ]
-      }).populate('prices.cityId').limit(10);
+    let searchResults = [];
+
+    if (filter.$text) {
+      searchResults = await this.productModel.find(
+        filter,
+        { score: { $meta: "textScore" } }
+      )
+      .populate('prices.cityId')
+      .sort({ score: { $meta: "textScore" } })
+      .limit(10);
+      
+      if (searchResults.length === 0) {
+        this.logger.warn(`⚠️ Búsqueda $text falló, intentando con Regex fallback...`);
+        delete filter.$text;
+        const regex = new RegExp(args.query.split(' ').join('|'), 'i');
+        filter.$or = [ { name: regex }, { keywords: regex } ];
+        searchResults = await this.productModel.find(filter).populate('prices.cityId').limit(10);
+      }
+    } else {
+      // Búsqueda solo por ocasión
+      searchResults = await this.productModel.find(filter).populate('prices.cityId').limit(10);
     }
 
     let resultText = "Resultados de la búsqueda (Catálogo interno):\n";

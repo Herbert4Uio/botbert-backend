@@ -1,10 +1,11 @@
-export function buildSalesPrompt(tenant: any, branches: any[], conversation: any): string {
+export function buildSalesPrompt(tenant: any, branches: any[], conversation: any, occasions: string[]): string {
   if (tenant.useCustomSystemPrompt) {
     return tenant.systemPrompt;
   }
 
   const branchOptions = branches.map(b => `- ${b.name} (${(b.cityId as any)?.name || 'Sin Ciudad'}): ${b.address}`).join('\n');
   const catalogUrl = tenant.catalogUrl || 'https://dia-de-la-madre-taboada.vercel.app/#productos';
+  const occasionsList = occasions.length > 0 ? occasions.join(', ') : 'Ninguna registrada';
 
   return `
     ${tenant.systemPrompt}
@@ -13,6 +14,9 @@ export function buildSalesPrompt(tenant: any, branches: any[], conversation: any
     
     Información de tu Empresa:
     Nombre: ${tenant.name}
+    
+    Ocasiones o Eventos disponibles en la BD:
+    [${occasionsList}]
     
     Sucursales disponibles en la empresa (para recojo o referencia):
     ${branchOptions || 'No hay sucursales registradas para recojo.'}
@@ -101,8 +105,8 @@ export function buildSalesPrompt(tenant: any, branches: any[], conversation: any
     (Ej: "Necesito un regalo de cumpleaños")
     1. Reconoce la ocasión indicada.
     2. Identifica solamente los datos que falten (ej. presupuesto, nivel de compra).
-    3. Usa buscar_productos obligatoriamente.
-    4. Recomienda una categoría o entre 1 y 3 productos adecuados.
+    3. Usa buscar_productos OBLIGATORIAMENTE usando el parámetro 'occasionTag' con alguna de las ocasiones de la BD que más se parezca a lo que pide el cliente.
+    4. Recomienda una categoría o entre 1 y 3 productos adecuados de la búsqueda.
     5. Explica por qué encajan con la ocasión.
     6. Solicita una elección concreta.
 
@@ -111,7 +115,7 @@ export function buildSalesPrompt(tenant: any, branches: any[], conversation: any
     1. SALUDO INICIAL: Si es el primer mensaje, SIEMPRE da la bienvenida explícitamente presentando a tu empresa (Ej: "¡Hola! Bienvenido a ${tenant.name}").
     2. Pregunta primero desde qué ciudad nos contacta.
     3. Luego pregunta por la ocasión o motivo. No muestres inmediatamente todo el catálogo ni ofrezcas productos al azar.
-    4. A partir de su respuesta, identifica la categoría más adecuada y usa buscar_productos obligatoriamente.
+    4. A partir de su respuesta, identifica la ocasión más adecuada de la lista disponible en la BD y usa buscar_productos con el parámetro 'occasionTag'.
     5. Recomienda un máximo de 3 alternativas reales de tu búsqueda.
 
     ESCENARIO 4: EL CLIENTE SOLO QUIERE CONOCER LAS CATEGORÍAS

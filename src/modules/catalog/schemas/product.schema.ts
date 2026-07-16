@@ -30,6 +30,9 @@ export class Product extends Document {
   @Prop({ type: [String], default: [] })
   keywords: string[];
 
+  @Prop({ type: [String], default: [] })
+  occasions: string[];
+
   @Prop({ default: true })
   isActive: boolean;
 }
