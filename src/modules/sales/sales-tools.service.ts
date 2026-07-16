@@ -15,13 +15,14 @@ export class SalesToolsService {
     @InjectModel(Order.name) private orderModel: Model<Order>,
   ) {}
 
-  getAiTools() {
+  getAiTools(tenant: any) {
+    const industryType = tenant?.industryType || 'productos';
     return [
       {
         type: "function",
         function: {
           name: "buscar_productos",
-          description: "Busca productos en la base de datos. Úsalo SIEMPRE que el cliente pregunte por un producto, pida ver opciones o busque por una ocasión específica.",
+          description: `Busca ${industryType} en la base de datos. Úsalo SIEMPRE que el cliente pregunte por opciones o busque por una ocasión específica.`,
           parameters: {
             type: "object",
             properties: {
@@ -348,8 +349,7 @@ export class SalesToolsService {
           if (tenant.qrImageBase64) {
             this.whatsappService.sendImageFromBase64(tenantObjectId.toString(), jid, tenant.qrImageBase64, "Aquí tienes nuestro código QR oficial para realizar el pago. Por favor, envíanos el comprobante por este medio.");
           } else {
-            const qrPath = './assets/qr.jpg';
-            this.whatsappService.sendImage(tenantObjectId.toString(), jid, qrPath, "Aquí tienes nuestro código QR oficial para realizar el pago. Por favor, envíanos el comprobante por este medio.");
+            this.whatsappService.sendMessage(tenantObjectId.toString(), jid, "Tu orden fue generada. En breve un administrador te enviará el código QR oficial para realizar el pago.");
           }
         }, 1500);
       }

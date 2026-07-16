@@ -18,6 +18,9 @@ export class Tenant extends Document {
   @Prop({ default: 'Eres el Asistente de Ventas Inteligente. Tu objetivo es ayudar al cliente a encontrar el producto ideal y cerrar la venta.' })
   systemPrompt: string;
 
+  @Prop({ default: 'productos' })
+  industryType: string;
+
   @Prop({ type: Boolean, default: false })
   useCustomSystemPrompt: boolean;
 
