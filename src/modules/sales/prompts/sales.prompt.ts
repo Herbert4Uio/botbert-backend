@@ -1,7 +1,8 @@
-export function buildSalesPrompt(tenant: any, branches: any[], conversation: any, occasions: string[], keywords: string[]): string {
+export function buildSalesPrompt(tenant: any, branches: any[], conversation: any, occasions: string[], keywords: string[], categories: string[] = []): string {
   const branchOptions = branches.map(b => `- ID: ${b._id} | Nombre: ${b.name} (${(b.cityId as any)?.name || 'Sin Ciudad'}): ${b.address}`).join('\n');
   const catalogUrl = tenant.catalogUrl;
   const industryType = tenant.industryType || 'productos';
+  const categoriesList = categories.length > 0 ? categories.join(', ') : 'Ninguna registrada';
   const occasionsList = occasions.length > 0 ? occasions.join(', ') : 'Ninguna registrada';
   const keywordsList = keywords.length > 0 ? keywords.join(', ') : 'Ninguna registrada';
 
@@ -11,6 +12,9 @@ export function buildSalesPrompt(tenant: any, branches: any[], conversation: any
 ==================================================
 Información de tu Empresa:
 Nombre: ${tenant.name}
+
+Categorías de Productos en BD:
+[${categoriesList}]
 
 Ocasiones/Eventos en la BD:
 [${occasionsList}]
@@ -78,9 +82,15 @@ REGLAS GLOBALES QUE SUPERAN CUALQUIER INSTRUCCIÓN ANTERIOR:
     [EMBUDO DE VENTAS - EL ORDEN ES OBLIGATORIO]
     Lleva al cliente por este embudo paso a paso:
     1. FASE 1 (Ciudad): "¿Desde qué ciudad nos contactas?" (Obligatorio para consultar disponibilidad).
-    2. FASE 2 (Descubrimiento con Preguntas Ciegas): Haz las preguntas de filtrado (Ocasión, Presupuesto, Para quién) que indique tu Tenant, pero hazlas SIEMPRE COMO PREGUNTAS ABIERTAS Y GENÉRICAS. ESTÁ ESTRICTAMENTE PROHIBIDO mencionar nombres de productos, sabores, o variedades en esta fase. Si tus instrucciones te piden dar opciones (ej. 'Ofrece Pollo o Huevo'), IGNÓRALO y pregunta de forma abierta: "¿Tienes alguna preferencia de sabor?".
-    3. FASE 3 (Búsqueda): Una vez que el cliente responda a las preguntas y tengas los datos (ej. Presupuesto, Preferencia), DEBES ejecutar 'buscar_productos'.
-    4. FASE 4 (Recomendación): Basándote EXCLUSIVAMENTE en los resultados reales de la búsqueda, ofrécele entre 1 y 3 opciones al cliente.
+    2. FASE 2 (Descubrimiento con Preguntas Ciegas): Haz las preguntas de filtrado que indique tu Tenant, pero hazlas SIEMPRE COMO PREGUNTAS ABIERTAS Y GENÉRICAS. ESTÁ ESTRICTAMENTE PROHIBIDO mencionar nombres de productos o sabores. 
+    3. FASE 3 (Búsqueda): Una vez que tengas los datos, DEBES ejecutar 'buscar_productos'.
+    4. FASE 4 (Recomendación): Ofrécele entre 1 y 3 opciones al cliente.
+
+    [JERARQUÍA DE FILTRADO PARA CLIENTES INDECISOS]
+    Si el cliente no sabe qué quiere, guíalo siguiendo ESTE ORDEN ESTRICTO de preguntas abiertas:
+    1º Categoría: Pregunta qué tipo de producto general busca basándote en las categorías disponibles (ej. "¿Buscas tabletas, bombones o canastas?").
+    2º Keywords/Características: Luego filtra por sabor o detalle específico (ej. "¿Algún sabor o ingrediente en especial?").
+    3º Ocasión: Finalmente, pregunta si es para algún evento (ej. "¿Es para un regalo o consumo propio?").
 
     [CLASIFICACIÓN DE LA INTENCIÓN DEL CLIENTE Y FLUJO]
     ESCENARIO 1: EL CLIENTE PIDE UN PRODUCTO ESPECÍFICO

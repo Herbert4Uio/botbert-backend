@@ -4,6 +4,7 @@ import { Model, Types } from 'mongoose';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { Product } from '../catalog/schemas/product.schema';
 import { Order } from '../order/schemas/order.schema';
+import { Category } from '../catalog/schemas/category.schema';
 
 @Injectable()
 export class SalesToolsService {
@@ -12,6 +13,7 @@ export class SalesToolsService {
   constructor(
     private readonly whatsappService: WhatsappService,
     @InjectModel(Product.name) private productModel: Model<Product>,
+    @InjectModel(Category.name) private categoryModel: Model<Category>,
     @InjectModel(Order.name) private orderModel: Model<Order>,
   ) {}
 
@@ -27,6 +29,7 @@ export class SalesToolsService {
             type: "object",
             properties: {
               query: { type: "string", description: "Búsqueda libre (ej. 'pollo', 'grande'). Usa string vacío '' SIEMPRE al inicio para escanear qué productos están realmente disponibles antes de hablar." },
+              categoryName: { type: "string", description: "El nombre exacto de la categoría que el cliente eligió (de la lista de tu contexto). Usa string vacío '' si no eligió ninguna." },
               occasionTag: { type: "string", description: "Una ocasión exacta (ej. 'Regalo'). Usa string vacío '' si no hay ocasión." },
               minPrice: { type: "number", description: "Precio mínimo del presupuesto. SOLO usar si el cliente proporcionó números explícitos. NO ASUMAS CANTIDADES." },
               maxPrice: { type: "number", description: "Precio máximo del presupuesto. SOLO usar si el cliente proporcionó números explícitos. NO ASUMAS CANTIDADES." },
@@ -93,6 +96,20 @@ export class SalesToolsService {
     
     let filter: any = { tenantId: tenantObjectId, isActive: true };
     
+    if (args.categoryName && args.categoryName.trim() !== '') {
+      const categoryDb = await this.categoryModel.findOne({ 
+        tenantId: tenantObjectId, 
+        name: new RegExp('^' + args.categoryName.trim() + '$', 'i'),
+        isActive: true
+      });
+      if (categoryDb) {
+        filter.categoryId = categoryDb._id;
+        this.logger.log(`🏷️ Filtrando por Categoría: ${categoryDb.name}`);
+      } else {
+        this.logger.warn(`⚠️ Categoría "${args.categoryName}" no encontrada.`);
+      }
+    }
+
     if (args.occasionTag && args.occasionTag.trim() !== '') {
       filter.occasions = new RegExp('^' + args.occasionTag + '$', 'i');
     }

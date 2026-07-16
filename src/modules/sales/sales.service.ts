@@ -11,6 +11,7 @@ import { Branch } from '../branch/schemas/branch.schema';
 import { Customer } from '../customer/schemas/customer.schema';
 import { AiAudit } from './schemas/ai-audit.schema';
 import { Product } from '../catalog/schemas/product.schema';
+import { Category } from '../catalog/schemas/category.schema';
 
 @Injectable()
 export class SalesService implements OnModuleInit {
@@ -26,6 +27,7 @@ export class SalesService implements OnModuleInit {
     @InjectModel(Customer.name) private customerModel: Model<Customer>,
     @InjectModel(AiAudit.name) private aiAuditModel: Model<AiAudit>,
     @InjectModel(Product.name) private productModel: Model<Product>,
+    @InjectModel(Category.name) private categoryModel: Model<Category>,
   ) {}
 
   private locks = new Map<string, boolean>();
@@ -92,7 +94,10 @@ export class SalesService implements OnModuleInit {
 
       const occasions = await this.productModel.distinct('occasions', { tenantId: tenantObjectId, isActive: true });
       const keywords = await this.productModel.distinct('keywords', { tenantId: tenantObjectId, isActive: true });
-      const fullSystemPrompt = buildSalesPrompt(tenant, branches, conversation, occasions, keywords);
+      const categoriesDb = await this.categoryModel.find({ tenantId: tenantObjectId, isActive: true });
+      const categories = categoriesDb.map(c => c.name);
+      
+      const fullSystemPrompt = buildSalesPrompt(tenant, branches, conversation, occasions, keywords, categories);
       const tools = this.salesToolsService.getAiTools(tenant);
 
       // Construcción del Historial
