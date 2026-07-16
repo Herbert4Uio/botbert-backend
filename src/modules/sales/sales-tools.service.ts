@@ -22,12 +22,12 @@ export class SalesToolsService {
         type: "function",
         function: {
           name: "buscar_productos",
-          description: `Busca ${industryType} en la base de datos. Úsalo SIEMPRE que el cliente pregunte por opciones o busque por una ocasión específica.`,
+          description: `Busca ${industryType} en la base de datos. Úsalo INMEDIATAMENTE después de saber la ciudad del cliente. Puedes usar query vacío ('') para explorar el catálogo general ANTES de ofrecer opciones de tu prompt.`,
           parameters: {
             type: "object",
             properties: {
-              query: { type: "string", description: "Coloca el DESTINATARIO (ej. 'novia', 'esposa', 'niño') o CARACTERÍSTICAS (ej. 'almendra', 'oscuro'). Usa string vacío '' si no tienes esta información." },
-              occasionTag: { type: "string", description: "Una de las ocasiones exactas que se te proporcionaron en el contexto (ej. 'Regalo', 'Día de la Madre')." },
+              query: { type: "string", description: "Búsqueda libre (ej. 'pollo', 'grande'). Usa string vacío '' SIEMPRE al inicio para escanear qué productos están realmente disponibles antes de hablar." },
+              occasionTag: { type: "string", description: "Una ocasión exacta (ej. 'Regalo'). Usa string vacío '' si no hay ocasión." },
               minPrice: { type: "number", description: "Precio mínimo del presupuesto. SOLO usar si el cliente proporcionó números explícitos. NO ASUMAS CANTIDADES." },
               maxPrice: { type: "number", description: "Precio máximo del presupuesto. SOLO usar si el cliente proporcionó números explícitos. NO ASUMAS CANTIDADES." },
               customerCity: { type: "string", description: "La ciudad que el cliente mencionó (ej. 'Cochabamba'). OBLIGATORIO para buscar precios correctos." }
