@@ -27,8 +27,8 @@ export class SalesToolsService {
             properties: {
               query: { type: "string", description: "Coloca el DESTINATARIO (ej. 'novia', 'esposa', 'niño') o CARACTERÍSTICAS (ej. 'almendra', 'oscuro'). Usa string vacío '' si no tienes esta información." },
               occasionTag: { type: "string", description: "Una de las ocasiones exactas que se te proporcionaron en el contexto (ej. 'Regalo', 'Día de la Madre')." },
-              minPrice: { type: "number", description: "Precio mínimo del presupuesto del cliente (opcional)." },
-              maxPrice: { type: "number", description: "Precio máximo del presupuesto del cliente (opcional)." },
+              minPrice: { type: "number", description: "Precio mínimo del presupuesto. SOLO usar si el cliente proporcionó números explícitos. NO ASUMAS CANTIDADES." },
+              maxPrice: { type: "number", description: "Precio máximo del presupuesto. SOLO usar si el cliente proporcionó números explícitos. NO ASUMAS CANTIDADES." },
               customerCity: { type: "string", description: "La ciudad que el cliente mencionó (ej. 'Cochabamba'). OBLIGATORIO para buscar precios correctos." }
             },
             required: ["customerCity"]

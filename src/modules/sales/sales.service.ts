@@ -91,7 +91,8 @@ export class SalesService implements OnModuleInit {
       }
 
       const occasions = await this.productModel.distinct('occasions', { tenantId: tenantObjectId, isActive: true });
-      const fullSystemPrompt = buildSalesPrompt(tenant, branches, conversation, occasions);
+      const keywords = await this.productModel.distinct('keywords', { tenantId: tenantObjectId, isActive: true });
+      const fullSystemPrompt = buildSalesPrompt(tenant, branches, conversation, occasions, keywords);
       const tools = this.salesToolsService.getAiTools();
 
       // Construcción del Historial
