@@ -1,5 +1,5 @@
 export function buildSalesPrompt(tenant: any, branches: any[], conversation: any, occasions: string[], keywords: string[]): string {
-  const branchOptions = branches.map(b => `- ${b.name} (${(b.cityId as any)?.name || 'Sin Ciudad'}): ${b.address}`).join('\n');
+  const branchOptions = branches.map(b => `- ID: ${b._id} | Nombre: ${b.name} (${(b.cityId as any)?.name || 'Sin Ciudad'}): ${b.address}`).join('\n');
   const catalogUrl = tenant.catalogUrl;
   const industryType = tenant.industryType || 'productos';
   const occasionsList = occasions.length > 0 ? occasions.join(', ') : 'Ninguna registrada';

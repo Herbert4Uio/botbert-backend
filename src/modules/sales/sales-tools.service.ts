@@ -48,8 +48,8 @@ export class SalesToolsService {
               paymentTiming: { type: "string", enum: ["PAY_NOW", "PAY_LATER"], description: "Si pagará AHORA (PAY_NOW) o AL_RECIBIR/AL_RECOGER (PAY_LATER)." },
               deliveryType: { type: "string", enum: ["RECOJO", "ENVIO"], description: "El método de entrega elegido." },
               customerCity: { type: "string", description: "La ciudad acordada para la entrega/recojo (ej. 'La Paz'). OBLIGATORIO." },
-              branchName: { type: "string", description: "Si es RECOJO, el nombre exacto de la sucursal elegida. Si es ENVIO, pon 'N/A'." },
-              shippingDate: { type: "string", description: "Fecha EXACTA de envío/recojo en formato YYYY-MM-DD (Calculada según la FECHA ACTUAL)." },
+              branchId: { type: "string", description: "Si es RECOJO, el ID exacto de la sucursal elegida de la lista del contexto. Si es ENVIO, pon 'N/A'." },
+              shippingDate: { type: "string", description: "Fecha EXACTA de envío/recojo en formato YYYY-MM-DD." },
               shippingTimeRange: { type: "string", description: "Rango de hora de entrega (ej. 10am-12pm, Tarde, N/A)." },
               shippingAddress: { type: "string", description: "Dirección de envío exacta o URL de Google Maps (o 'Misma sucursal' si es recojo)." },
               shippingInstructions: { type: "string", description: "Recomendaciones o instrucciones de entrega (o 'Ninguna' si no hay)." },
@@ -60,14 +60,14 @@ export class SalesToolsService {
                 items: {
                   type: "object",
                   properties: {
-                    productId: { type: "string", description: "El número de Opción (ej. '1', '2') exacto que el cliente eligió de la lista de productos devuelta por buscar_productos." },
+                    productId: { type: "string", description: "El número de Opción (ej. '1') exacto que devolvió 'buscar_productos'. Si NUNCA usaste 'buscar_productos', escribe el NOMBRE EXACTO del producto (ej. 'Bowl Salteado Pollo')." },
                     quantity: { type: "number", description: "Cantidad a comprar" }
                   },
                   required: ["productId", "quantity"]
                 }
               }
             },
-            required: ["paymentType", "paymentTiming", "deliveryType", "customerCity", "branchName", "billingName", "items"]
+            required: ["paymentType", "paymentTiming", "deliveryType", "customerCity", "branchId", "billingName", "items"]
           }
         }
       },
@@ -224,9 +224,9 @@ export class SalesToolsService {
     } else if (args.deliveryType === 'ENVIO' && (!args.shippingAddress || args.shippingAddress.trim() === '')) {
       isOrderValid = false;
       validationErrorMsg = "El cliente eligió ENVIO, pero falta la dirección exacta. Pídesela antes de generar la orden.";
-    } else if (args.deliveryType === 'RECOJO' && !args.branchName) {
+    } else if (args.deliveryType === 'RECOJO' && (!args.branchId || args.branchId === 'N/A')) {
       isOrderValid = false;
-      validationErrorMsg = "El cliente eligió RECOJO, pero falta especificar de qué sucursal. Ofrécele las opciones antes de generar la orden.";
+      validationErrorMsg = "El cliente eligió RECOJO, pero falta especificar el ID de la sucursal. Ofrécele las opciones antes de generar la orden.";
     } else if (!args.items || args.items.length === 0) {
       isOrderValid = false;
       validationErrorMsg = "El carrito de compras está vacío.";
@@ -263,11 +263,10 @@ export class SalesToolsService {
     // Validación de Sucursal para Recojo
     let selectedBranchId = null;
     if (isOrderValid && args.deliveryType === 'RECOJO') {
-      const branchRegex = new RegExp(args.branchName, 'i');
-      const matchedBranch = branches.find(b => branchRegex.test(b.name));
+      const matchedBranch = branches.find(b => b._id.toString() === args.branchId);
       if (!matchedBranch) {
         isOrderValid = false;
-        validationErrorMsg = `No pude encontrar la sucursal "${args.branchName}". Por favor, verifica el nombre y confírmame.`;
+        validationErrorMsg = `No pude encontrar el ID de sucursal "${args.branchId}". Por favor, verifica el nombre y confírmame.`;
       } else {
         selectedBranchId = matchedBranch._id;
       }
@@ -286,12 +285,22 @@ export class SalesToolsService {
 
         let productDb = null;
         try {
-          productDb = await this.productModel.findOne({ 
-            tenantId: tenantObjectId, 
-            _id: new Types.ObjectId(productId)
+          if (Types.ObjectId.isValid(productId)) {
+            productDb = await this.productModel.findOne({ 
+              tenantId: tenantObjectId, 
+              _id: new Types.ObjectId(productId)
+            }).populate('prices.cityId');
+          }
+        } catch(e) {}
+
+        if (!productDb) {
+          // Fallback: Buscar por nombre exacto o regex si el productId enviado es un texto
+          let cleanName = productId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escapar regex
+          let regexName = new RegExp(cleanName, 'i');
+          productDb = await this.productModel.findOne({
+            tenantId: tenantObjectId,
+            name: regexName
           }).populate('prices.cityId');
-        } catch(e) {
-          productDb = null;
         }
 
         if (productDb) {
