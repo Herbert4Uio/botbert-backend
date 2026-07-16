@@ -25,7 +25,7 @@ export class SalesToolsService {
           parameters: {
             type: "object",
             properties: {
-              query: { type: "string", description: "El término de búsqueda de texto libre (ej. 'chocolate', 'almendra', 'caja'). Usa string vacío '' si vas a buscar solo por ocasión." },
+              query: { type: "string", description: "Coloca el DESTINATARIO (ej. 'novia', 'esposa', 'niño') o CARACTERÍSTICAS (ej. 'almendra', 'oscuro'). Usa string vacío '' si no tienes esta información." },
               occasionTag: { type: "string", description: "Una de las ocasiones exactas que se te proporcionaron en el contexto (ej. 'Regalo', 'Día de la Madre')." },
               minPrice: { type: "number", description: "Precio mínimo del presupuesto del cliente (opcional)." },
               maxPrice: { type: "number", description: "Precio máximo del presupuesto del cliente (opcional)." },
