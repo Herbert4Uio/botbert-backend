@@ -2,10 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
-import { Conversation } from './schemas/conversation.schema';
 import { Product } from '../catalog/schemas/product.schema';
 import { Order } from '../order/schemas/order.schema';
-import { Customer } from '../customer/schemas/customer.schema';
 
 @Injectable()
 export class SalesToolsService {

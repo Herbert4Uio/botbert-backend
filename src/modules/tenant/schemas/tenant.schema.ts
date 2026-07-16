@@ -35,6 +35,9 @@ export class Tenant extends Document {
 
   @Prop({ type: Number, default: 20 })
   maxItemsPerOrder: number;
+
+  @Prop({ required: false })
+  catalogUrl?: string;
 }
 
 export const TenantSchema = SchemaFactory.createForClass(Tenant);
