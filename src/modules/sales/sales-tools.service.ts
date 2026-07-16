@@ -27,6 +27,8 @@ export class SalesToolsService {
             properties: {
               query: { type: "string", description: "El término de búsqueda de texto libre (ej. 'chocolate', 'almendra', 'caja'). Usa string vacío '' si vas a buscar solo por ocasión." },
               occasionTag: { type: "string", description: "Una de las ocasiones exactas que se te proporcionaron en el contexto (ej. 'Regalo', 'Día de la Madre')." },
+              minPrice: { type: "number", description: "Precio mínimo del presupuesto del cliente (opcional)." },
+              maxPrice: { type: "number", description: "Precio máximo del presupuesto del cliente (opcional)." },
               customerCity: { type: "string", description: "La ciudad que el cliente mencionó (ej. 'Cochabamba'). OBLIGATORIO para buscar precios correctos." }
             },
             required: ["customerCity"]
@@ -107,43 +109,55 @@ export class SalesToolsService {
       )
       .populate('prices.cityId')
       .sort({ score: { $meta: "textScore" } })
-      .limit(10);
+      .limit(50);
       
       if (searchResults.length === 0) {
         this.logger.warn(`⚠️ Búsqueda $text falló, intentando con Regex fallback...`);
         delete filter.$text;
         const regex = new RegExp(args.query.split(' ').join('|'), 'i');
         filter.$or = [ { name: regex }, { keywords: regex } ];
-        searchResults = await this.productModel.find(filter).populate('prices.cityId').limit(10);
+        searchResults = await this.productModel.find(filter).populate('prices.cityId').limit(50);
       }
     } else {
       // Búsqueda solo por ocasión
-      searchResults = await this.productModel.find(filter).populate('prices.cityId').limit(10);
+      searchResults = await this.productModel.find(filter).populate('prices.cityId').limit(50);
     }
 
-    let resultText = "Resultados de la búsqueda (Catálogo interno):\n";
-    if (searchResults.length > 0) {
-      this.logger.debug(`✅ Encontrados ${searchResults.length} productos en la BD.`);
+    // Filtrado en memoria por Ciudad y Presupuesto
+    const regexCity = new RegExp(args.customerCity, 'i');
+    let validProducts = [];
 
-      conversation.lastSearchResults = searchResults.map(p => p._id);
+    for (const p of searchResults) {
+      let matchedPrice = null;
+      if (p.prices && p.prices.length > 0) {
+        const priceObj = p.prices.find((pr: any) => pr.cityId && pr.cityId.name && regexCity.test(pr.cityId.name));
+        if (priceObj) {
+          matchedPrice = priceObj.price;
+        }
+      }
+
+      if (matchedPrice !== null) {
+        let passMin = args.minPrice === undefined || args.minPrice === null || matchedPrice >= args.minPrice;
+        let passMax = args.maxPrice === undefined || args.maxPrice === null || matchedPrice <= args.maxPrice;
+        if (passMin && passMax) {
+          validProducts.push({ ...p.toObject(), matchedPrice });
+        }
+      }
+    }
+
+    validProducts = validProducts.slice(0, 10);
+
+    let resultText = "Resultados de la búsqueda (Catálogo interno):\n";
+    if (validProducts.length > 0) {
+      this.logger.debug(`✅ Encontrados ${validProducts.length} productos en la BD válidos para el filtro.`);
+
+      conversation.lastSearchResults = validProducts.map(p => p._id);
       await conversation.save();
 
-      searchResults.forEach((p: any, index: number) => {
-        let matchedPrice = null;
-        if (p.prices && p.prices.length > 0) {
-          const regexCity = new RegExp(args.customerCity, 'i');
-          const priceObj = p.prices.find((pr: any) => pr.cityId && pr.cityId.name && regexCity.test(pr.cityId.name));
-          if (priceObj) {
-            matchedPrice = priceObj.price;
-          }
-        }
+      validProducts.forEach((p: any, index: number) => {
         const optionId = (index + 1).toString();
         const weightInfo = p.weight ? ` (Peso: ${p.weight})` : '';
-        if (matchedPrice !== null) {
-            resultText += `- [Opción: ${optionId}] ${p.name}${weightInfo}: $${matchedPrice}. ${p.description}\n`;
-        } else {
-            resultText += `- [Opción: ${optionId}] ${p.name}${weightInfo}: (No disponible para esta ciudad). ${p.description}\n`;
-        }
+        resultText += `- [Opción: ${optionId}] ${p.name}${weightInfo}: $${p.matchedPrice}. ${p.description}\n`;
       });
     } else {
       this.logger.debug(`❌ No se encontraron productos.`);

@@ -7,7 +7,10 @@ export class Customer extends Document {
   tenantId: Types.ObjectId;
 
   @Prop({ required: true })
-  whatsappId: string;
+  whatsappId: string; // Puede ser un @lid o un @s.whatsapp.net
+
+  @Prop()
+  phoneNumber?: string; // Número telefónico real si está disponible
 
   @Prop()
   profileName: string;

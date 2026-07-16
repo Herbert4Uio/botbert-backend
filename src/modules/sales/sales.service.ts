@@ -66,7 +66,15 @@ export class SalesService implements OnModuleInit {
 
       const branches = await this.branchModel.find({ tenantId: tenantObjectId, isActive: true }).populate('cityId');
       
-      const customer = await this.getOrCreateCustomer(tenantObjectId, jid, msg.pushName);
+      const jidAlt = (msg.key as any).remoteJidAlt || (msg as any).participant || null;
+      let phoneNumber = '';
+      if (jidAlt && jidAlt.includes('@s.whatsapp.net')) {
+          phoneNumber = jidAlt.split('@')[0];
+      } else if (jid.includes('@s.whatsapp.net')) {
+          phoneNumber = jid.split('@')[0];
+      }
+
+      const customer = await this.getOrCreateCustomer(tenantObjectId, jid, msg.pushName, phoneNumber);
       let conversation = await this.getOrCreateConversation(tenantObjectId, customer._id, tenant.conversationExpirationHours || 24);
 
       if (this.isDuplicateMessage(conversation, messageId)) return;
@@ -190,14 +198,18 @@ export class SalesService implements OnModuleInit {
     return false;
   }
 
-  private async getOrCreateCustomer(tenantObjectId: Types.ObjectId, jid: string, pushName: string) {
+  private async getOrCreateCustomer(tenantObjectId: Types.ObjectId, jid: string, pushName: string, phoneNumber: string) {
     let customer = await this.customerModel.findOne({ tenantId: tenantObjectId, whatsappId: jid });
     if (!customer) {
       customer = await this.customerModel.create({
         tenantId: tenantObjectId,
         whatsappId: jid,
+        phoneNumber: phoneNumber || undefined,
         profileName: pushName || 'Cliente',
       });
+    } else if (phoneNumber && !customer.phoneNumber) {
+      customer.phoneNumber = phoneNumber;
+      await customer.save();
     }
     return customer;
   }
