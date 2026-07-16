@@ -28,9 +28,7 @@ export class SalesToolsService {
           parameters: {
             type: "object",
             properties: {
-              query: { type: "string", description: "Búsqueda libre (ej. 'pollo', 'grande'). Usa string vacío '' SIEMPRE al inicio para escanear qué productos están realmente disponibles antes de hablar." },
-              categoryName: { type: "string", description: "El nombre exacto de la categoría que el cliente eligió (de la lista de tu contexto). Usa string vacío '' si no eligió ninguna." },
-              occasionTag: { type: "string", description: "Una ocasión exacta (ej. 'Regalo'). Usa string vacío '' si no hay ocasión." },
+              query: { type: "string", description: "Búsqueda libre (ej. 'regalo novia', 'pollo'). Usa string vacío '' SIEMPRE al inicio para escanear el catálogo." },
               minPrice: { type: "number", description: "Precio mínimo del presupuesto. SOLO usar si el cliente proporcionó números explícitos. NO ASUMAS CANTIDADES." },
               maxPrice: { type: "number", description: "Precio máximo del presupuesto. SOLO usar si el cliente proporcionó números explícitos. NO ASUMAS CANTIDADES." },
               customerCity: { type: "string", description: "La ciudad que el cliente mencionó (ej. 'Cochabamba'). OBLIGATORIO para buscar precios correctos." }
@@ -92,56 +90,40 @@ export class SalesToolsService {
   }
 
   async handleProductSearch(args: any, tenantObjectId: Types.ObjectId, conversation: any): Promise<string> {
-    this.logger.log(`🔍 Buscando productos con query: "${args.query || ''}", occasion: "${args.occasionTag || ''}" para ciudad "${args.customerCity}"`);
+    this.logger.log(`🔍 Buscando productos con query: "${args.query || ''}" para ciudad "${args.customerCity}"`);
     
     let filter: any = { tenantId: tenantObjectId, isActive: true };
-    
-    if (args.categoryName && args.categoryName.trim() !== '') {
-      const categoryDb = await this.categoryModel.findOne({ 
-        tenantId: tenantObjectId, 
-        name: new RegExp('^' + args.categoryName.trim() + '$', 'i'),
-        isActive: true
-      });
-      if (categoryDb) {
-        filter.categoryId = categoryDb._id;
-        this.logger.log(`🏷️ Filtrando por Categoría: ${categoryDb.name}`);
-      } else {
-        this.logger.warn(`⚠️ Categoría "${args.categoryName}" no encontrada.`);
-      }
-    }
-
-    if (args.occasionTag && args.occasionTag.trim() !== '') {
-      filter.occasions = new RegExp('^' + args.occasionTag + '$', 'i');
-    }
-    
-    if (args.query && args.query.trim() !== '') {
-      filter.$text = { $search: args.query };
-    }
-
     let searchResults = [];
 
-    if (filter.$text) {
-      searchResults = await this.productModel.find(
-        filter,
-        { score: { $meta: "textScore" } }
-      )
-      .populate('prices.cityId')
-      .sort({ score: { $meta: "textScore" } })
-      .limit(50);
-      
-      if (searchResults.length === 0) {
-        this.logger.warn(`⚠️ Búsqueda $text falló, intentando con Regex fallback...`);
-        delete filter.$text;
-        const regex = new RegExp(args.query.split(' ').join('|'), 'i');
-        filter.$or = [ { name: regex }, { keywords: regex } ];
-        searchResults = await this.productModel.find(filter).populate('prices.cityId').limit(50);
+    if (args.query && args.query.trim() !== '') {
+      const regex = new RegExp(args.query.split(' ').join('|'), 'i');
+      const matchingCategories = await this.categoryModel.find({ 
+        tenantId: tenantObjectId, 
+        name: regex,
+        isActive: true
+      });
+      const categoryIds = matchingCategories.map(c => c._id);
+
+      const orConditions: any[] = [
+        { name: regex },
+        { keywords: regex },
+        { occasions: regex }
+      ];
+
+      if (categoryIds.length > 0) {
+        orConditions.push({ categoryId: { $in: categoryIds } });
+        this.logger.log(`🏷️ Categorías encontradas en el query: ${matchingCategories.map(c => c.name).join(', ')}`);
       }
+
+      filter.$or = orConditions;
+
+      searchResults = await this.productModel.find(filter)
+        .populate('prices.cityId')
+        .limit(50);
     } else {
-      // Búsqueda solo por ocasión
       searchResults = await this.productModel.find(filter).populate('prices.cityId').limit(50);
     }
 
-    // Filtrado en memoria por Ciudad y Presupuesto
     const regexCity = new RegExp(args.customerCity, 'i');
     let validProducts = [];
 
