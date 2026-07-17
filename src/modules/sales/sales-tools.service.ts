@@ -89,6 +89,39 @@ export class SalesToolsService {
     ];
   }
 
+  // Función profesional para crear una búsqueda tolerante a acentos y plurales
+  private buildFlexibleRegex(query: string): RegExp {
+    const normalizedQuery = query.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const stopWords = ['un', 'una', 'el', 'la', 'los', 'las', 'para', 'con', 'de', 'en', 'quiero', 'busco', 'necesito', 'algún', 'algun', 'cual', 'que'];
+    
+    const words = normalizedQuery.split(/\s+/)
+      .map(w => w.toLowerCase())
+      .filter(w => w.length > 2 && !stopWords.includes(w));
+    
+    if (words.length === 0) return new RegExp(normalizedQuery, 'i');
+
+    const rootWords = words.map(w => {
+      let root = w;
+      if (root.endsWith('es') && root.length > 4) {
+        root = root.slice(0, -2);
+      } else if (root.endsWith('s') && root.length > 3) {
+        root = root.slice(0, -1);
+      }
+      return root;
+    });
+    
+    const vowelMap: Record<string, string> = {
+      'a': '[aáAÁ]', 'e': '[eéEÉ]', 'i': '[iíIÍ]', 'o': '[oóOÓ]', 'u': '[uúüUÚÜ]'
+    };
+    
+    const accentAgnosticRoots = rootWords.map(root => {
+      const replaced = root.split('').map(char => vowelMap[char] || char).join('');
+      return replaced + '(es|s)?';
+    });
+    
+    return new RegExp(accentAgnosticRoots.join('|'), 'i');
+  }
+
   async handleProductSearch(args: any, tenantObjectId: Types.ObjectId, conversation: any): Promise<string> {
     this.logger.log(`🔍 Buscando productos con query: "${args.query || ''}" para ciudad "${args.customerCity}"`);
     
@@ -96,18 +129,18 @@ export class SalesToolsService {
     let searchResults = [];
 
     if (args.query && args.query.trim() !== '') {
-      const regex = new RegExp(args.query.split(' ').join('|'), 'i');
+      const flexibleRegex = this.buildFlexibleRegex(args.query);
       const matchingCategories = await this.categoryModel.find({ 
         tenantId: tenantObjectId, 
-        name: regex,
+        name: flexibleRegex,
         isActive: true
       });
       const categoryIds = matchingCategories.map(c => c._id);
 
       const orConditions: any[] = [
-        { name: regex },
-        { keywords: regex },
-        { occasions: regex }
+        { name: flexibleRegex },
+        { keywords: flexibleRegex },
+        { occasions: flexibleRegex }
       ];
 
       if (categoryIds.length > 0) {
