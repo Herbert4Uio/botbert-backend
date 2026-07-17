@@ -119,16 +119,19 @@ export class SalesToolsService {
       return replaced + '(es|s)?';
     });
     
-    return new RegExp(accentAgnosticRoots.join('|'), 'i');
+    const regexString = accentAgnosticRoots.join('|');
+    this.logger.debug(`🧠 Regex generado para búsqueda: /${regexString}/i`);
+    return new RegExp(regexString, 'i');
   }
 
   async handleProductSearch(args: any, tenantObjectId: Types.ObjectId, conversation: any): Promise<string> {
-    this.logger.log(`🔍 Buscando productos con query: "${args.query || ''}" para ciudad "${args.customerCity}"`);
+    this.logger.log(`🔍 INICIO BÚSQUEDA - Query: "${args.query || ''}" | Ciudad: "${args.customerCity}"`);
     
     let filter: any = { tenantId: tenantObjectId, isActive: true };
     let searchResults = [];
 
     if (args.query && args.query.trim() !== '') {
+      this.logger.debug(`📝 Procesando query del usuario: "${args.query}"`);
       const flexibleRegex = this.buildFlexibleRegex(args.query);
       const matchingCategories = await this.categoryModel.find({ 
         tenantId: tenantObjectId, 
@@ -145,20 +148,29 @@ export class SalesToolsService {
 
       if (categoryIds.length > 0) {
         orConditions.push({ categoryId: { $in: categoryIds } });
-        this.logger.log(`🏷️ Categorías encontradas en el query: ${matchingCategories.map(c => c.name).join(', ')}`);
+        this.logger.log(`🏷️ Match con Categorías: ${matchingCategories.map(c => c.name).join(', ')}`);
+      } else {
+        this.logger.debug(`🏷️ No hubo match con ninguna Categoría.`);
       }
 
       filter.$or = orConditions;
+      this.logger.debug(`🛠️ Ejecutando consulta $or en MongoDB con condiciones: ${JSON.stringify(orConditions)}`);
 
       searchResults = await this.productModel.find(filter)
         .populate('prices.cityId')
         .limit(50);
+      
+      this.logger.log(`📦 MongoDB devolvió ${searchResults.length} productos coincidentes antes de filtrar por ciudad y precio.`);
     } else {
+      this.logger.debug(`📝 Query vacío. Buscando catálogo general...`);
       searchResults = await this.productModel.find(filter).populate('prices.cityId').limit(50);
+      this.logger.log(`📦 MongoDB devolvió ${searchResults.length} productos del catálogo general.`);
     }
 
     const regexCity = new RegExp(args.customerCity, 'i');
     let validProducts = [];
+    
+    this.logger.debug(`🏙️ Filtrando en memoria por Ciudad: "${args.customerCity}" y Presupuesto: Min: ${args.minPrice || 'N/A'}, Max: ${args.maxPrice || 'N/A'}`);
 
     for (const p of searchResults) {
       let matchedPrice = null;
@@ -174,7 +186,11 @@ export class SalesToolsService {
         let passMax = args.maxPrice === undefined || args.maxPrice === null || matchedPrice <= args.maxPrice;
         if (passMin && passMax) {
           validProducts.push({ ...p.toObject(), matchedPrice });
+        } else {
+          this.logger.debug(`❌ Producto "${p.name}" descartado por presupuesto (Precio: $${matchedPrice}).`);
         }
+      } else {
+        this.logger.debug(`❌ Producto "${p.name}" descartado porque no tiene precio registrado para la ciudad "${args.customerCity}".`);
       }
     }
 
@@ -182,7 +198,7 @@ export class SalesToolsService {
 
     let resultText = "Resultados de la búsqueda (Catálogo interno):\n";
     if (validProducts.length > 0) {
-      this.logger.debug(`✅ Encontrados ${validProducts.length} productos en la BD válidos para el filtro.`);
+      this.logger.log(`✅ RESULTADO FINAL: ${validProducts.length} productos válidos enviados a la IA.`);
 
       conversation.lastSearchResults = validProducts.map(p => p._id);
       await conversation.save();
@@ -190,10 +206,12 @@ export class SalesToolsService {
       validProducts.forEach((p: any, index: number) => {
         const optionId = (index + 1).toString();
         const weightInfo = p.weight ? ` (Peso: ${p.weight})` : '';
-        resultText += `- [Opción: ${optionId}] ${p.name}${weightInfo}: $${p.matchedPrice}. ${p.description}\n`;
+        const itemLine = `- [Opción: ${optionId}] ${p.name}${weightInfo}: $${p.matchedPrice}. ${p.description}`;
+        this.logger.debug(`➡️ Enviado a IA: ${itemLine}`);
+        resultText += itemLine + '\n';
       });
     } else {
-      this.logger.debug(`❌ No se encontraron productos.`);
+      this.logger.warn(`❌ RESULTADO FINAL: No quedaron productos después del filtrado.`);
       resultText = "No se encontraron productos exactos con ese término. Puedes sugerirle al cliente que intente otra palabra clave o pregúntale de otra forma.";
     }
 
