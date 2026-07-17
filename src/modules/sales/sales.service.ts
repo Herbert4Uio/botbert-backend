@@ -121,7 +121,7 @@ export class SalesService implements OnModuleInit {
       let iterations = 0;
       let currentTools = [...tools];
 
-      while (iterations < 3) {
+      while (iterations < 5) {
         iterations++;
         this.logger.log(`🤖 Iniciando iteración ${iterations} con la API de Groq...`);
         const aiMessage = await this.aiService.generateResponse(messages, currentTools);
@@ -131,6 +131,25 @@ export class SalesService implements OnModuleInit {
         await this.auditAiResponse(tenantObjectId, customer._id, messages, tools, aiMessage);
 
         assistantResponse = aiMessage.content;
+
+        // 🛑 INTERCEPTOR ANTI-CATÁLOGO (ALGORÍTMICO) 🛑
+        if (assistantResponse && (!aiMessage.tool_calls || aiMessage.tool_calls.length === 0)) {
+          const listMatches = assistantResponse.match(/\d+[\.)]\s/g) || [];
+          const containsMenuKeywords = /categorías disponibles|nuestro catálogo|menú/i.test(assistantResponse);
+
+          if (listMatches.length >= 4 || containsMenuKeywords) {
+            this.logger.warn(`🛑 INTERCEPTOR: La IA intentó enviar un catálogo/menú largo (${listMatches.length} items). Bloqueando y forzando reintento...`);
+            
+            // Añadimos la respuesta incorrecta para que entienda el contexto
+            messages.push({ role: 'assistant', content: assistantResponse });
+            // Le damos una bofetada eléctrica para que corrija
+            messages.push({ 
+              role: 'system', 
+              content: "SISTEMA ERROR CRÍTICO: Acabas de intentar enlistar un catálogo o mostrar un menú con más de 3 elementos. ESTO ESTÁ ESTRICTAMENTE PROHIBIDO. Corrige tu respuesta INMEDIATAMENTE. Borra la lista larga. Haz solo una pregunta abierta (ej. '¿Para qué ocasión buscas?') o usa la herramienta 'buscar_productos'. NO te disculpes, solo escribe la respuesta correcta." 
+            });
+            continue; // Forzamos la siguiente iteración sin enviarle nada al cliente
+          }
+        }
 
         if (aiMessage.tool_calls && aiMessage.tool_calls.length > 0) {
           messages.push(aiMessage);
