@@ -96,8 +96,14 @@ export class SalesService implements OnModuleInit {
       const keywords = await this.productModel.distinct('keywords', { tenantId: tenantObjectId, isActive: true });
       const categoriesDb = await this.categoryModel.find({ tenantId: tenantObjectId, isActive: true });
       const categories = categoriesDb.map(c => c.name);
+
+      // Algoritmo de Sugerencia Dinámica (Backend)
+      // Mezclamos todas las posibles palabras clave y extraemos 3 al azar para no sobrecargar el prompt
+      const allSuggestions = [...new Set([...occasions, ...keywords, ...categories])].filter(Boolean);
+      const shuffledSuggestions = allSuggestions.sort(() => 0.5 - Math.random());
+      const selectedSuggestions = shuffledSuggestions.slice(0, 3);
       
-      const fullSystemPrompt = buildSalesPrompt(tenant, branches, conversation, occasions, keywords, categories);
+      const fullSystemPrompt = buildSalesPrompt(tenant, branches, conversation, selectedSuggestions);
       const tools = this.salesToolsService.getAiTools(tenant);
 
       // Construcción del Historial
