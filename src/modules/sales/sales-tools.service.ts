@@ -210,6 +210,8 @@ export class SalesToolsService {
         this.logger.debug(`➡️ Enviado a IA: ${itemLine}`);
         resultText += itemLine + '\n';
       });
+      
+      resultText += "\n[REGLA DEL SISTEMA]: Selecciona un MÁXIMO de 3 opciones de esta lista para mostrárselas al cliente de forma resumida y conversacional. NUNCA muestres más de 3.";
     } else {
       this.logger.warn(`❌ RESULTADO FINAL: No quedaron productos después del filtrado.`);
       resultText = "No se encontraron productos exactos con ese término. Puedes sugerirle al cliente que intente otra palabra clave o pregúntale de otra forma.";
@@ -280,6 +282,9 @@ export class SalesToolsService {
     } else if (!args.items || args.items.length === 0) {
       isOrderValid = false;
       validationErrorMsg = "El carrito de compras está vacío.";
+    } else if (!args.billingName || args.billingName.trim() === '' || args.billingName.toLowerCase() === 'cliente' || args.billingName.toLowerCase().includes('no propor')) {
+      isOrderValid = false;
+      validationErrorMsg = "Falta el nombre completo para la factura. Debes preguntárselo explícitamente al cliente antes de generar la orden.";
     }
 
     const MAX_ITEMS_PER_PRODUCT = tenant.maxItemsPerOrder || 20;
