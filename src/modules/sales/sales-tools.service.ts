@@ -90,7 +90,7 @@ export class SalesToolsService {
   }
 
   // Función profesional para crear una búsqueda tolerante a acentos y plurales
-  private buildFlexibleRegex(query: string): RegExp {
+  private buildFlexibleRegex(query: string): { regex: RegExp, rootWords: string[] } {
     const normalizedQuery = query.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const stopWords = ['un', 'una', 'el', 'la', 'los', 'las', 'para', 'con', 'de', 'en', 'quiero', 'busco', 'necesito', 'algún', 'algun', 'cual', 'que'];
     
@@ -98,7 +98,7 @@ export class SalesToolsService {
       .map(w => w.toLowerCase())
       .filter(w => w.length > 2 && !stopWords.includes(w));
     
-    if (words.length === 0) return new RegExp(normalizedQuery, 'i');
+    if (words.length === 0) return { regex: new RegExp(normalizedQuery, 'i'), rootWords: [] };
 
     const rootWords = words.map(w => {
       let root = w;
@@ -121,7 +121,7 @@ export class SalesToolsService {
     
     const regexString = accentAgnosticRoots.join('|');
     this.logger.debug(`🧠 Regex generado para búsqueda: /${regexString}/i`);
-    return new RegExp(regexString, 'i');
+    return { regex: new RegExp(regexString, 'i'), rootWords };
   }
 
   async handleProductSearch(args: any, tenantObjectId: Types.ObjectId, conversation: any): Promise<string> {
@@ -130,15 +130,21 @@ export class SalesToolsService {
     let filter: any = { tenantId: tenantObjectId, isActive: true };
     let searchResults = [];
 
+    let matchingCategoryIdsStr: string[] = [];
+    let queryRootWords: string[] = [];
+
     if (args.query && args.query.trim() !== '') {
       this.logger.debug(`📝 Procesando query del usuario: "${args.query}"`);
-      const flexibleRegex = this.buildFlexibleRegex(args.query);
+      const { regex: flexibleRegex, rootWords } = this.buildFlexibleRegex(args.query);
+      queryRootWords = rootWords;
+
       const matchingCategories = await this.categoryModel.find({ 
         tenantId: tenantObjectId, 
         name: flexibleRegex,
         isActive: true
       });
       const categoryIds = matchingCategories.map(c => c._id);
+      matchingCategoryIdsStr = matchingCategories.map(c => c._id.toString());
 
       const orConditions: any[] = [
         { name: flexibleRegex },
@@ -158,7 +164,7 @@ export class SalesToolsService {
 
       searchResults = await this.productModel.find(filter)
         .populate('prices.cityId')
-        .limit(50);
+        .limit(150);
       
       this.logger.log(`📦 MongoDB devolvió ${searchResults.length} productos coincidentes antes de filtrar por ciudad y precio.`);
     } else {
@@ -192,6 +198,33 @@ export class SalesToolsService {
       } else {
         this.logger.debug(`❌ Producto "${p.name}" descartado porque no tiene precio registrado para la ciudad "${args.customerCity}".`);
       }
+    }
+
+    // 🧠 Algoritmo de Scoring (Puntuación de Relevancia)
+    if (queryRootWords.length > 0) {
+      validProducts = validProducts.map(p => {
+        let score = 0;
+        const nameLower = (p.name || '').toLowerCase();
+        const keywordsLower = (p.keywords || []).join(' ').toLowerCase();
+        const occasionsLower = (p.occasions || []).join(' ').toLowerCase();
+        const catIdStr = p.categoryId ? p.categoryId.toString() : '';
+
+        for (const word of queryRootWords) {
+          if (nameLower.includes(word)) score += 10;
+          if (keywordsLower.includes(word)) score += 5;
+          if (occasionsLower.includes(word)) score += 5;
+        }
+
+        if (matchingCategoryIdsStr.includes(catIdStr)) {
+          score += 5;
+        }
+
+        return { ...p, score };
+      });
+
+      // Ordenar por puntuación de mayor a menor
+      validProducts.sort((a, b) => b.score - a.score);
+      this.logger.debug(`🎯 Top 3 Relevantes tras Scoring: ${validProducts.slice(0,3).map(p => `"${p.name}" (Score: ${p.score})`).join(', ')}`);
     }
 
     validProducts = validProducts.slice(0, 10);
