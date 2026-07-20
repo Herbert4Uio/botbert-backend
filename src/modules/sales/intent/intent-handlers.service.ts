@@ -88,10 +88,10 @@ export class IntentHandlers {
       [ConversationPhase.SEARCH_READY]:
         'FASE ACTUAL: LISTO PARA BUSCAR. Tienes suficiente información. Ejecuta buscar_productos con los datos recopilados.',
       [ConversationPhase.RECOMMENDATION]: tenant?.isProductsModifiable
-        ? 'FASE ACTUAL: RECOMENDACIÓN. Presenta entre 1 y 3 productos reales de la base de datos. Después de que el cliente elija, USA la pregunta de personalización configurada para ofrecerle notas o modificaciones. Espera su respuesta antes de avanzar a logística.'
-        : 'FASE ACTUAL: RECOMENDACIÓN. Presenta entre 1 y 3 productos reales de la base de datos. Espera confirmación del cliente.',
+        ? 'FASE ACTUAL: RECOMENDACIÓN. Presenta entre 1 y 3 productos reales de la base de datos CON SU PRECIO. Después de que el cliente elija, PREGUNTA cuántas unidades desea. Luego USA la pregunta de personalización configurada para ofrecerle notas o modificaciones. Espera su respuesta antes de avanzar a logística.'
+        : 'FASE ACTUAL: RECOMENDACIÓN. Presenta entre 1 y 3 productos reales de la base de datos CON SU PRECIO. Después de que el cliente elija, PREGUNTA cuántas unidades desea ANTES de avanzar a logística.',
       [ConversationPhase.LOGISTICS]:
-        'FASE ACTUAL: LOGÍSTICA. El cliente eligió un producto. Define envío/recojo, pago y facturación. Pregunta nombre completo y NIT.',
+        'FASE ACTUAL: LOGÍSTICA. El cliente eligió un producto y confirmó la cantidad. Define envío/recojo, pago y facturación. Pregunta nombre completo y NIT. IMPORTANTE: Si la sucursal tiene la etiqueta [Solo Recojo], NO ofrezcas envío a domicilio.',
       [ConversationPhase.ORDER_READY]:
         'FASE ACTUAL: LISTO PARA ORDEN. Tienes toda la información. Usa generar_orden para crear el pedido.',
       [ConversationPhase.COMPLETED]:
