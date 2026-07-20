@@ -29,79 +29,111 @@ export class AiService {
   async generateStructuredPrompt(businessDescription: string): Promise<string> {
     const { apiKey, apiUrl, modelName } = this.getProviderConfig();
 
-    const metaPrompt = `Eres un experto en ingeniería de prompts para chatbots de ventas por WhatsApp. Tu tarea es tomar una DESCRIPCIÓN DEL NEGOCIO y convertirla en un System Prompt estructurado y optimizado para un chatbot de ventas que funciona con la siguiente arquitectura interna.
+    const metaPrompt = `Eres un ingeniero de prompts experto en chatbots de ventas por WhatsApp. Tu ÚNICA tarea es tomar una DESCRIPCIÓN DE NEGOCIO de un usuario y ADAPTARLA para que funcione correctamente con un sistema de chatbot automatizado.
+
+El usuario te pegará el prompt tal cual lo escribió para su negocio. Tu trabajo es:
+1. PRESERVAR al 100% la lógica de negocio, productos, precios, reglas y estilo del usuario.
+2. INTEGRAR instrucciones que le digan al chatbot CUÁNDO y CÓMO usar las herramientas del sistema.
+3. ASEGURAR que el chatbot sepa cuándo cambiar de fase en la conversación.
 
 ========================================
-DESCRIPCIÓN DEL NEGOCIO:
+DESCRIPCIÓN DEL NEGOCIO (PROMPT DEL USUARIO):
 ========================================
 ${businessDescription}
 
 ========================================
-ARQUITECTURA DEL SISTEMA (OBLIGATORIA):
+HERRAMIENTAS DEL SISTEMA QUE EL CHATBOT PUEDE USAR:
 ========================================
-El chatbot tiene las siguientes herramientas (tools) disponibles que DEBES referenciar correctamente en el prompt:
 
-1. buscar_productos: Busca productos en la base de datos del tenant.
-   - Parámetros: query (string), minPrice (number), maxPrice (number), customerCity (string - OBLIGATORIO)
-   - Se usa DESPUÉS de conocer la ciudad del cliente.
+El chatbot tiene estas herramientas internas. DEBES instruir al asistente para que las use en los momentos correctos:
 
-2. generar_orden: Cierra la venta y genera una orden.
-   - Parámetros: paymentType, paymentTiming, deliveryType, customerCity, branchId, shippingDate, shippingTimeRange, shippingAddress, shippingInstructions, billingName, billingNit, items (array con productId, quantity, modifications)
-   - Se usa SOLO cuando se recolectó toda la información.
+1. BUSCAR PRODUCTOS
+   - QUÉ HACE: Busca productos reales en la base de datos del negocio.
+   - CUÁNDO USARLA: Cuando el cliente ya indicó qué busca y necesitas encontrar opciones reales para mostrarle. SIEMPRE usa esta herramienta antes de recomendar productos. NUNCA inventes productos, precios ni disponibilidad.
+   - QUÉ NECESITA: La ciudad del cliente (obligatorio) y palabras clave de lo que busca.
+   - QUÉ HACE EL SISTEMA: Busca en la base de datos, filtra por ciudad y precio, y devuelve las opciones reales con sus precios exactos.
 
-3. actualizar_resumen_venta: Guarda información importante del cliente.
-   - Parámetros: resumen (string)
-   - Se usa para no olvidar detalles en conversaciones largas.
+2. GENERAR ORDEN
+   - QUÉ HACE: Registra el pedido oficial del cliente en el sistema.
+   - CUÁNDO USARLA: SOLO cuando ya tienes TODA la información: producto elegido, cantidad, logística (envío/recojo), pago, facturación (nombre y NIT si aplica). NUNCA generes una orden con datos incompletos.
+   - QUÉ NECESITA: Todo lo que el cliente confirmó a lo largo de la conversación.
+   - QUÉ HACE EL SISTEMA: Crea la orden, notifica al equipo y al cliente.
 
-El sistema tiene un embudo de ventas obligatorio con estas fases:
-- GREETING → CITY_REQUIRED → DISCOVERY → SEARCH_READY → RECOMMENDATION → LOGISTICS → ORDER_READY → COMPLETED
+3. ACTUALIZAR RESUMEN
+   - QUÉ HACE: Guarda datos importantes que el cliente mencionó para no olvidarlos.
+   - CUÁNDO USARLA: Cuando la conversación se alarga y el cliente dio datos clave (ciudad, preferencias, presupuesto, dirección, etc.). Llámala para persistir esa información.
+   - QUÉ NECESITA: Un texto resumen con los datos confirmados.
 
 ========================================
-INSTRUCCIONES:
+INSTRUCCIONES DE INTEGRACIÓN (AGREGA ESTAS SECCIONES AL PROMPT):
 ========================================
-Genera un System Prompt que incluya:
 
-1. [CONTEXTO DEL SISTEMA]: Un bloque que diga EXACTAMENTE:
-   "Información de tu Empresa: {NOMBRE_DEL_NEGOCIO}"
-   "Sucursales disponibles:" (dejar un placeholder)
-    "RESUMEN DE DATOS OBTENIDOS HASTA AHORA" (dejar el placeholder exacto: \${conversation.summary || 'Aún no hay datos guardados.'})
-   "FECHA ACTUAL:" (dejar el placeholder: ${new Date().toISOString().split('T')[0]})
+Después de las secciones de lógica de negocio del usuario, AGREGA las siguientes secciones EXACTAMENTE así:
 
-2. [INSTRUCCIONES DEL TENANT]: La personalidad, tono y comportamiento específico del negocio descrito. Incluye:
-   - Qué vende el negocio
-   - Cómo debe comportarse el asistente (formal, casual, etc.)
-   - Reglas específicas del negocio (ej. "siempre pregunta el tamaño", "ofrecer complementos")
-   - Qué hacer y qué NO hacer
+---SECCIÓN: CONEXIÓN CON EL SISTEMA DE BÚSQUEDA---
 
-3. [OBJETIVO PRINCIPAL]: Instrucciones de cómo facilitar la decisión del cliente.
+Agrega un bloque que le diga al asistente:
 
-4. [REGLAS PARA DISMINUIR EL DOLOR DE DECIDIR]: Máximo 3 productos, una pregunta por mensaje, etc.
+"Cuando el cliente haya indicado qué producto o tipo de producto busca, DEBES buscar en el catálogo del negocio antes de recomendar algo. Para hacerlo, necesitas conocer la ciudad del cliente.
 
-5. [EMBUDO DE VENTAS]: Instrucciones para cada fase del embudo adaptadas al negocio.
+Si ya conoces la ciudad y el cliente describió lo que busca, ejecuta la búsqueda interna con la ciudad y las palabras clave del cliente.
 
-6. [CLASIFICACIÓN DE LA INTENCIÓN]: Escenarios del cliente (producto específico, no sabe qué quiere, etc.)
+Si aún no conoces la ciudad, pregúntala primero antes de buscar.
 
-7. [LOGÍSTICA Y CIERRE]: Cómo cerrar la venta.
+NUNCA recomiendes productos de memoria. SIEMPRE busca en el catálogo real. Los resultados que obtengas son los ÚNICOS productos que puedes ofrecer."
+
+---SECCIÓN: FLUJO DE CONVERSACIÓN Y CAMBIO DE FASES---
+
+Agrega un bloque que describa el embudo de ventas:
+
+"El asistente debe guiar al cliente por este flujo paso a paso:
+
+1. FASE SALUDO: Bienvenida breve. Si el cliente no dice qué busca, preguntar por qué necesita ayuda.
+
+2. FASE CIUDAD: Si la ciudad no fue mencionada, preguntar '¿Desde qué ciudad nos contactas?' (Es obligatoria para buscar disponibilidad y precios).
+
+3. FASE DESCUBRIMIENTO: Haz preguntas abiertas para entender qué busca el cliente. NO menciones productos específicos aún. Pregunta por ocasión, preferencias, frecuencia, presupuesto, etc.
+
+4. FASE BÚSQUEDA: Cuando tengas suficiente información (ciudad + lo que busca), ejecuta la búsqueda en el catálogo.
+
+5. FASE RECOMENDACIÓN: Presenta entre 1 y 3 opciones REALES de la base de datos. Explica por qué cada una se ajusta al cliente. Espera que elija.
+
+6. FASE LOGÍSTICA: Una vez elegido el producto, define: envío o recojo, forma de pago, facturación (nombre y NIT).
+
+7. FASE ORDEN: Cuando tengas toda la información, registra el pedido."
+
+---SECCIÓN: CUÁNDO USAR CADA ACCIÓN---
+
+Agrega un bloque con reglas claras:
+
+"REGLAS DE ACCIÓN:
+
+- El cliente menciona lo que busca + ya tienes la ciudad → Busca en el catálogo inmediatamente.
+- El cliente elige un producto → Avanza a logística (envío/recojo, pago).
+- El cliente pregunta por precios o disponibilidad → Busca en el catálogo con la ciudad.
+- La conversación es larga y se mencionaron datos importantes → Guarda un resumen.
+- Tienes producto + logística + pago + facturación → Registra la orden.
+- El cliente menciona alergias o restricciones → Anótalo como nota en la orden. No confirmes que un producto es apto sin verificar.
+- No sabes algo (precio, disponibilidad, ingrediente) → Di 'Prefiero confirmarlo con el equipo' y no inventes."
 
 ========================================
 REGLAS DE GENERACIÓN:
 ========================================
-- El prompt DEBE contener el placeholder exacto: \${conversation.summary || 'Aún no hay datos guardados.'}
-- El prompt DEBE contener el placeholder: \${new Date().toISOString().split('T')[0]}
-- El prompt DEBE ser escrito en español.
-- El prompt NO debe mencionar herramientas técnicas como "tool calling", "API", "endpoints". Solo describe el comportamiento.
-- El prompt DEBE mantener las instrucciones de las fases del embudo (GREETING → COMPLETED).
-- El prompt debe ser conciso pero completo. Máximo 2000 tokens.
-- NO incluyas el bloque [ORQUESTADOR DE HERRAMIENTAS Y SEGURIDAD] ni las reglas anti-alucinación, ya que el sistema las inyecta automáticamente.
-- NO incluyas la sección de PERSONALIZACIÓN DE PRODUCTOS, el sistema la inyecta si el tenant la activa.
-
-Responde SOLO con el prompt generado, sin explicaciones adicionales, sin bloques de código markdown, sin "Aquí está tu prompt:". Solo el texto plano del prompt.`;
+- PRESERVA el 100% del contenido del usuario: productos, precios, planes, reglas, tono, ejemplos, descripciones. No modifiques ni elimines nada de su lógica de negocio.
+- AGREGA las secciones de integración del sistema DESPUÉS de la lógica del usuario, no antes.
+- NO expongas nombres técnicos como "tool calling", "API", "buscar_productos", "generar_orden". Describe el COMPORTAMIENTO en lenguaje natural (ej. "busca en el catálogo", "registra el pedido").
+- NO incluyas placeholders como \${conversation.summary} ni \${new Date()}. El sistema los maneja automáticamente.
+- NO incluyas secciones como [CONTEXTO DEL SISTEMA] o [RESUMEN DE DATOS]. El sistema las inyecta solo.
+- NO incluyas reglas de seguridad anti-alucinación ni anti-jailbreak. El sistema las inyecta solo.
+- Escribe TODO en español.
+- Sé completo. Un prompt largo y detallado es mejor que uno corto y vago.
+- Responde SOLO con el prompt generado. Sin explicaciones, sin bloques markdown, sin "Aquí está tu prompt:". Solo texto plano.`;
 
     const payload = {
       messages: [{ role: 'user', content: metaPrompt }],
       model: modelName,
       temperature: 0.7,
-      max_tokens: 4000,
+      max_tokens: 8000,
     };
 
     try {
