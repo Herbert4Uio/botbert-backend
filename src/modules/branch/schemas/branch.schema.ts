@@ -27,7 +27,10 @@ export class Branch extends Document {
   @Prop({ default: '18:00' })
   businessHoursEnd: string;
 
-  @Prop({ default: 'Lo sentimos, en este momento nos encontramos fuera de nuestro horario de atención. Te responderemos a la brevedad posible.' })
+  @Prop({
+    default:
+      'Lo sentimos, en este momento nos encontramos fuera de nuestro horario de atención. Te responderemos a la brevedad posible.',
+  })
   outOfHoursMessage: string;
 }
 

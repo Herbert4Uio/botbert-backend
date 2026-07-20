@@ -13,7 +13,7 @@ export class RolesGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
     if (!user) return false;
-    
+
     // Si los roles permitidos incluyen el rol del usuario, permite el acceso
     return roles.includes(user.role);
   }

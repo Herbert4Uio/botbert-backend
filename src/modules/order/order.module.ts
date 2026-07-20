@@ -9,7 +9,7 @@ import { WhatsappModule } from '../whatsapp/whatsapp.module';
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Order.name, schema: OrderSchema }]),
-    WhatsappModule
+    WhatsappModule,
   ],
   controllers: [OrderController],
   providers: [OrderService],

@@ -14,6 +14,9 @@ class OrderItem {
 
   @Prop({ required: true })
   price: number;
+
+  @Prop({ type: [String], default: [] })
+  modifications: string[];
 }
 
 @Schema({ timestamps: true })
@@ -60,7 +63,19 @@ export class Order extends Document {
   @Prop()
   shippingAddress: string;
 
-  @Prop({ enum: ['PENDING', 'WAITING_PAYMENT', 'PAID', 'PREPARING', 'READY', 'SHIPPED', 'DELIVERED', 'CANCELLED'], default: 'PENDING' })
+  @Prop({
+    enum: [
+      'PENDING',
+      'WAITING_PAYMENT',
+      'PAID',
+      'PREPARING',
+      'READY',
+      'SHIPPED',
+      'DELIVERED',
+      'CANCELLED',
+    ],
+    default: 'PENDING',
+  })
   status: string;
 
   @Prop({ default: false })

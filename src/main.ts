@@ -6,7 +6,7 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  
+
   // Habilitar CORS para el Frontend
   app.enableCors({
     origin: true, // true refleja el origen dinámicamente y soluciona el conflicto con credentials: true
@@ -26,7 +26,10 @@ async function bootstrap() {
     .setDescription('SaaS Multi-Tenant para Chatbots de WhatsApp')
     .setVersion('1.0')
     .addTag('whatbot')
-    .addApiKey({ type: 'apiKey', name: 'x-tenant-id', in: 'header' }, 'x-tenant-id') // auth temporal por header
+    .addApiKey(
+      { type: 'apiKey', name: 'x-tenant-id', in: 'header' },
+      'x-tenant-id',
+    ) // auth temporal por header
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);

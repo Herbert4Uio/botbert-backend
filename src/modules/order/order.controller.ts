@@ -7,7 +7,11 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 
 @ApiTags('Orders')
-@ApiHeader({ name: 'x-tenant-id', required: true, description: 'ID del Tenant (Empresa)' })
+@ApiHeader({
+  name: 'x-tenant-id',
+  required: true,
+  description: 'ID del Tenant (Empresa)',
+})
 @Controller('orders')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class OrderController {
@@ -21,7 +25,10 @@ export class OrderController {
   }
 
   @Patch(':id/status')
-  @ApiOperation({ summary: 'Actualizar el estado de una orden (PENDIENTE, ENVIADO, CANCELADO)' })
+  @ApiOperation({
+    summary:
+      'Actualizar el estado de una orden (PENDIENTE, ENVIADO, CANCELADO)',
+  })
   @ApiBody({ schema: { example: { status: 'ENVIADO' } } })
   @Roles('OWNER', 'ADMIN', 'VIEWER')
   async updateStatus(

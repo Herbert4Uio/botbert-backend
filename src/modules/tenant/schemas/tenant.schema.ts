@@ -15,7 +15,10 @@ export class Tenant extends Document {
   @Prop({ required: false })
   whatsappNumber?: string;
 
-  @Prop({ default: 'Eres el Asistente de Ventas Inteligente. Tu objetivo es ayudar al cliente a encontrar el producto ideal y cerrar la venta.' })
+  @Prop({
+    default:
+      'Eres el Asistente de Ventas Inteligente. Tu objetivo es ayudar al cliente a encontrar el producto ideal y cerrar la venta.',
+  })
   systemPrompt: string;
 
   @Prop({ default: 'productos' })
@@ -41,6 +44,27 @@ export class Tenant extends Document {
 
   @Prop({ required: false })
   catalogUrl?: string;
+
+  @Prop({
+    type: [
+      {
+        question: { type: String, required: true },
+        answer: { type: String, required: true },
+        keywords: { type: [String], default: [] },
+      },
+    ],
+    default: [],
+  })
+  faqs: { question: string; answer: string; keywords: string[] }[];
+
+  @Prop({ type: [String], default: [] })
+  greetingKeywords: string[];
+
+  @Prop({ type: Boolean, default: false })
+  isProductsModifiable: boolean;
+
+  @Prop({ required: false })
+  modifiableQuestion?: string;
 }
 
 export const TenantSchema = SchemaFactory.createForClass(Tenant);

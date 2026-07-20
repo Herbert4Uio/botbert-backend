@@ -10,8 +10,11 @@ export class UserService {
 
   async create(tenantId: string, createUserDto: any) {
     const saltOrRounds = 10;
-    const hashedPassword = await bcrypt.hash(createUserDto.password, saltOrRounds);
-    
+    const hashedPassword = await bcrypt.hash(
+      createUserDto.password,
+      saltOrRounds,
+    );
+
     return this.userModel.create({
       tenantId,
       ...createUserDto,
@@ -24,17 +27,24 @@ export class UserService {
   }
 
   async findOne(tenantId: string, id: string) {
-    const user = await this.userModel.findOne({ _id: id, tenantId }).select('-hashedPassword');
+    const user = await this.userModel
+      .findOne({ _id: id, tenantId })
+      .select('-hashedPassword');
     if (!user) throw new NotFoundException('Usuario no encontrado');
     return user;
   }
 
   async update(tenantId: string, id: string, updateUserDto: any) {
     if (updateUserDto.password) {
-      updateUserDto.hashedPassword = await bcrypt.hash(updateUserDto.password, 10);
+      updateUserDto.hashedPassword = await bcrypt.hash(
+        updateUserDto.password,
+        10,
+      );
       delete updateUserDto.password;
     }
-    const user = await this.userModel.findOneAndUpdate({ _id: id, tenantId }, updateUserDto, { new: true }).select('-hashedPassword');
+    const user = await this.userModel
+      .findOneAndUpdate({ _id: id, tenantId }, updateUserDto, { new: true })
+      .select('-hashedPassword');
     if (!user) throw new NotFoundException('Usuario no encontrado');
     return user;
   }

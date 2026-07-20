@@ -24,8 +24,11 @@ export class Product extends Document {
   @Prop({ required: false })
   weight?: string;
 
-  @Prop({ type: [{ cityId: { type: Types.ObjectId, ref: 'City' }, price: Number }], default: [] })
-  prices: { cityId: Types.ObjectId, price: number }[];
+  @Prop({
+    type: [{ cityId: { type: Types.ObjectId, ref: 'City' }, price: Number }],
+    default: [],
+  })
+  prices: { cityId: Types.ObjectId; price: number }[];
 
   @Prop({ type: [String], default: [] })
   keywords: string[];

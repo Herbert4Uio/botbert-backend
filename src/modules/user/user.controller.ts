@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Put,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { UserService } from './user.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -30,7 +39,11 @@ export class UserController {
 
   @Put(':id')
   @Roles('OWNER', 'ADMIN')
-  async update(@TenantId() tenantId: string, @Param('id') id: string, @Body() updateUserDto: any) {
+  async update(
+    @TenantId() tenantId: string,
+    @Param('id') id: string,
+    @Body() updateUserDto: any,
+  ) {
     return this.userService.update(tenantId, id, updateUserDto);
   }
 

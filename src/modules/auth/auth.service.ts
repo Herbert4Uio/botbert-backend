@@ -9,16 +9,21 @@ import * as bcrypt from 'bcrypt';
 export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
-    private jwtService: JwtService
+    private jwtService: JwtService,
   ) {}
 
   async login(loginDto: any) {
-    const user = await this.userModel.findOne({ username: loginDto.username, isActive: true }).populate('tenantId');
+    const user = await this.userModel
+      .findOne({ username: loginDto.username, isActive: true })
+      .populate('tenantId');
     if (!user) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    const isMatch = await bcrypt.compare(loginDto.password, user.hashedPassword);
+    const isMatch = await bcrypt.compare(
+      loginDto.password,
+      user.hashedPassword,
+    );
     if (!isMatch) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
@@ -29,7 +34,7 @@ export class AuthService {
       sub: user._id,
       tenantId: tenantInfo?._id || null,
       sucursalId: user.sucursalId,
-      role: user.role
+      role: user.role,
     };
 
     return {
@@ -40,8 +45,8 @@ export class AuthService {
         role: user.role,
         tenantId: tenantInfo?._id || null,
         tenantName: tenantInfo?.name || null,
-        sucursalId: user.sucursalId
-      }
+        sucursalId: user.sucursalId,
+      },
     };
   }
 }
