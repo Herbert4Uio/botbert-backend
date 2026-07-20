@@ -21,11 +21,23 @@ import { CityModule } from './modules/city/city.module';
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGODB_URI') || 'mongodb://localhost:27017/whatbot',
+        uri:
+          configService.get<string>('MONGODB_URI') ||
+          'mongodb://localhost:27017/whatbot',
       }),
       inject: [ConfigService],
     }),
-    TenantModule, BranchModule, UserModule, CatalogModule, CustomerModule, OrderModule, WhatsappModule, AiModule, AuthModule, SalesModule, CityModule
+    TenantModule,
+    BranchModule,
+    UserModule,
+    CatalogModule,
+    CustomerModule,
+    OrderModule,
+    WhatsappModule,
+    AiModule,
+    AuthModule,
+    SalesModule,
+    CityModule,
   ],
   controllers: [AppController],
   providers: [AppService],

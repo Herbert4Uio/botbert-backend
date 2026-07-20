@@ -1,7 +1,12 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import makeWASocket, { Browsers, DisconnectReason, initAuthCreds, BufferJSON } from '@whiskeysockets/baileys';
+import makeWASocket, {
+  Browsers,
+  DisconnectReason,
+  initAuthCreds,
+  BufferJSON,
+} from '@whiskeysockets/baileys';
 import * as qrcode from 'qrcode-terminal';
 import { BaileysAuth } from './schemas/baileys-auth.schema';
 import { WhatsappGateway } from './whatsapp.gateway';
@@ -10,23 +15,34 @@ import { WhatsappGateway } from './whatsapp.gateway';
 export class WhatsappService implements OnModuleInit {
   public sockets: Map<string, ReturnType<typeof makeWASocket>> = new Map();
   public qrCodes: Map<string, string> = new Map(); // tenantId -> qr
-  
-  public onMessageCallback: (tenantId: string, message: any, jid: string) => void = () => {};
+
+  public onMessageCallback: (
+    tenantId: string,
+    message: any,
+    jid: string,
+  ) => void = () => {};
 
   constructor(
     @InjectModel(BaileysAuth.name) private authModel: Model<BaileysAuth>,
-    private whatsappGateway: WhatsappGateway
+    private whatsappGateway: WhatsappGateway,
   ) {}
 
   onModuleInit() {
     console.log('WhatsappService inicializado.');
   }
 
-  public registerMessageHandler(callback: (tenantId: string, message: any, jid: string) => void) {
+  public registerMessageHandler(
+    callback: (tenantId: string, message: any, jid: string) => void,
+  ) {
     this.onMessageCallback = callback;
   }
 
-  public async sendImage(tenantId: string, jid: string, imagePath: string, caption?: string) {
+  public async sendImage(
+    tenantId: string,
+    jid: string,
+    imagePath: string,
+    caption?: string,
+  ) {
     const sock = this.sockets.get(tenantId);
     if (!sock) {
       console.error(`Socket no encontrado para el tenant: ${tenantId}`);
@@ -35,7 +51,12 @@ export class WhatsappService implements OnModuleInit {
     await sock.sendMessage(jid, { image: { url: imagePath }, caption });
   }
 
-  public async sendImageFromBase64(tenantId: string, jid: string, base64: string, caption?: string) {
+  public async sendImageFromBase64(
+    tenantId: string,
+    jid: string,
+    base64: string,
+    caption?: string,
+  ) {
     const sock = this.sockets.get(tenantId);
     if (!sock) {
       console.error(`Socket no encontrado para el tenant: ${tenantId}`);
@@ -73,7 +94,7 @@ export class WhatsappService implements OnModuleInit {
       this.sockets.delete(tenantId);
     }
     this.qrCodes.delete(tenantId);
-    
+
     // Limpiar auth data de DB
     await this.authModel.deleteMany({ tenantId: new Types.ObjectId(tenantId) });
     this.whatsappGateway.emitConnectionStatus(tenantId, 'DISCONNECTED');
@@ -86,12 +107,12 @@ export class WhatsappService implements OnModuleInit {
     }
 
     console.log(`Iniciando sesión de WhatsApp para la empresa: ${tenantId}`);
-    
+
     const { state, saveCreds } = await this.useMongoDBAuthState(tenantId);
 
     const sock = makeWASocket({
       auth: state,
-      printQRInTerminal: true, 
+      printQRInTerminal: true,
       browser: Browsers.macOS('Desktop'),
       syncFullHistory: false,
     });
@@ -100,7 +121,7 @@ export class WhatsappService implements OnModuleInit {
 
     sock.ev.on('connection.update', (update) => {
       const { connection, lastDisconnect, qr } = update;
-      
+
       if (qr) {
         this.qrCodes.set(tenantId, qr);
         this.whatsappGateway.emitQrCode(tenantId, qr);
@@ -108,19 +129,25 @@ export class WhatsappService implements OnModuleInit {
       }
 
       if (connection === 'close') {
-        const shouldReconnect = (lastDisconnect?.error as any)?.output?.statusCode !== DisconnectReason.loggedOut;
+        const shouldReconnect =
+          (lastDisconnect?.error as any)?.output?.statusCode !==
+          DisconnectReason.loggedOut;
         console.log('Conexión cerrada. Reconectando:', shouldReconnect);
         this.sockets.delete(tenantId);
         this.qrCodes.delete(tenantId);
-        
+
         if (shouldReconnect) {
           setTimeout(() => this.startSession(tenantId), 5000);
         } else {
-          this.authModel.deleteMany({ tenantId: new Types.ObjectId(tenantId) }).exec();
+          this.authModel
+            .deleteMany({ tenantId: new Types.ObjectId(tenantId) })
+            .exec();
           this.whatsappGateway.emitConnectionStatus(tenantId, 'DISCONNECTED');
         }
       } else if (connection === 'open') {
-        console.log(`¡Conexión de WhatsApp abierta y lista para empresa ${tenantId}!`);
+        console.log(
+          `¡Conexión de WhatsApp abierta y lista para empresa ${tenantId}!`,
+        );
         this.sockets.set(tenantId, sock);
         this.qrCodes.delete(tenantId);
         this.whatsappGateway.emitConnectionStatus(tenantId, 'CONNECTED');
@@ -132,7 +159,8 @@ export class WhatsappService implements OnModuleInit {
         for (const msg of m.messages) {
           if (!msg.key.fromMe && msg.message) {
             const jid = msg.key.remoteJid;
-            if (jid && !jid.includes('@g.us')) { // Ignorar grupos
+            if (jid && !jid.includes('@g.us')) {
+              // Ignorar grupos
               this.onMessageCallback(tenantId, msg, jid);
             }
           }
@@ -148,7 +176,10 @@ export class WhatsappService implements OnModuleInit {
 
     const readData = async (type: string, id: string) => {
       const parsedId = `${type}-${id}`;
-      const data = await this.authModel.findOne({ tenantId: tenantObjectId, sessionId: parsedId });
+      const data = await this.authModel.findOne({
+        tenantId: tenantObjectId,
+        sessionId: parsedId,
+      });
       if (data) {
         return JSON.parse(JSON.stringify(data.authData), BufferJSON.reviver);
       }
@@ -161,13 +192,16 @@ export class WhatsappService implements OnModuleInit {
       await this.authModel.updateOne(
         { tenantId: tenantObjectId, sessionId: parsedId },
         { $set: { authData: dataToSave } },
-        { upsert: true }
+        { upsert: true },
       );
     };
 
     const removeData = async (type: string, id: string) => {
       const parsedId = `${type}-${id}`;
-      await this.authModel.deleteOne({ tenantId: tenantObjectId, sessionId: parsedId });
+      await this.authModel.deleteOne({
+        tenantId: tenantObjectId,
+        sessionId: parsedId,
+      });
     };
 
     const creds = (await readData('creds', 'default')) || initAuthCreds();
@@ -180,9 +214,9 @@ export class WhatsappService implements OnModuleInit {
             const data: { [key: string]: any } = {};
             await Promise.all(
               ids.map(async (id) => {
-                let value = await readData(type, id);
+                const value = await readData(type, id);
                 data[id] = value;
-              })
+              }),
             );
             return data;
           },

@@ -6,7 +6,11 @@ import { WhatsappGateway } from './whatsapp.gateway';
 import { WhatsappController } from './whatsapp.controller';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: BaileysAuth.name, schema: BaileysAuthSchema }])],
+  imports: [
+    MongooseModule.forFeature([
+      { name: BaileysAuth.name, schema: BaileysAuthSchema },
+    ]),
+  ],
   controllers: [WhatsappController],
   providers: [WhatsappService, WhatsappGateway],
   exports: [MongooseModule, WhatsappService],

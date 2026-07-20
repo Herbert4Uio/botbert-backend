@@ -9,7 +9,7 @@ import { TenantService } from './tenant.service';
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Tenant.name, schema: TenantSchema }]),
-    UserModule
+    UserModule,
   ],
   controllers: [TenantController],
   providers: [TenantService],

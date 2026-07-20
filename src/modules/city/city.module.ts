@@ -5,7 +5,9 @@ import { CityController } from './city.controller';
 import { City, CitySchema } from './schemas/city.schema';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: City.name, schema: CitySchema }])],
+  imports: [
+    MongooseModule.forFeature([{ name: City.name, schema: CitySchema }]),
+  ],
   providers: [CityService],
   controllers: [CityController],
   exports: [MongooseModule, CityService],

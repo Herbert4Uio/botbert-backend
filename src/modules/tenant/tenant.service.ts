@@ -9,7 +9,7 @@ import * as bcrypt from 'bcrypt';
 export class TenantService {
   constructor(
     @InjectModel(Tenant.name) private tenantModel: Model<Tenant>,
-    @InjectModel(User.name) private userModel: Model<User>
+    @InjectModel(User.name) private userModel: Model<User>,
   ) {}
 
   async findAll() {
@@ -23,9 +23,13 @@ export class TenantService {
   async create(data: any) {
     // Check if the owner email is already taken across the entire system
     if (data.ownerEmail) {
-      const existingUser = await this.userModel.findOne({ username: data.ownerEmail });
+      const existingUser = await this.userModel.findOne({
+        username: data.ownerEmail,
+      });
       if (existingUser) {
-        throw new BadRequestException('El correo del propietario ya está registrado.');
+        throw new BadRequestException(
+          'El correo del propietario ya está registrado.',
+        );
       }
     }
 
@@ -34,6 +38,8 @@ export class TenantService {
       name: data.name,
       plan: data.plan,
       isActive: data.isActive ?? true,
+      isProductsModifiable: data.isProductsModifiable ?? false,
+      modifiableQuestion: data.modifiableQuestion,
     });
     const savedTenant = await newTenant.save();
 

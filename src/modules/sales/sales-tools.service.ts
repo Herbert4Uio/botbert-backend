@@ -21,86 +21,198 @@ export class SalesToolsService {
     const industryType = tenant?.industryType || 'productos';
     return [
       {
-        type: "function",
+        type: 'function',
         function: {
-          name: "buscar_productos",
+          name: 'buscar_productos',
           description: `Busca ${industryType} en la base de datos. Úsalo INMEDIATAMENTE después de saber la ciudad del cliente. Puedes usar query vacío ('') para explorar el catálogo general ANTES de ofrecer opciones de tu prompt.`,
           parameters: {
-            type: "object",
+            type: 'object',
             properties: {
-              query: { type: "string", description: "Búsqueda libre (ej. 'regalo novia', 'pollo'). Usa string vacío '' SIEMPRE al inicio para escanear el catálogo." },
-              minPrice: { type: "number", description: "Precio mínimo del presupuesto. SOLO usar si el cliente proporcionó números explícitos. NO ASUMAS CANTIDADES." },
-              maxPrice: { type: "number", description: "Precio máximo del presupuesto. SOLO usar si el cliente proporcionó números explícitos. NO ASUMAS CANTIDADES." },
-              customerCity: { type: "string", description: "La ciudad que el cliente mencionó (ej. 'Cochabamba'). OBLIGATORIO para buscar precios correctos." }
+              query: {
+                type: 'string',
+                description:
+                  "Búsqueda libre (ej. 'regalo novia', 'pollo'). Usa string vacío '' SIEMPRE al inicio para escanear el catálogo.",
+              },
+              minPrice: {
+                type: 'number',
+                description:
+                  'Precio mínimo del presupuesto. SOLO usar si el cliente proporcionó números explícitos. NO ASUMAS CANTIDADES.',
+              },
+              maxPrice: {
+                type: 'number',
+                description:
+                  'Precio máximo del presupuesto. SOLO usar si el cliente proporcionó números explícitos. NO ASUMAS CANTIDADES.',
+              },
+              customerCity: {
+                type: 'string',
+                description:
+                  "La ciudad que el cliente mencionó (ej. 'Cochabamba'). OBLIGATORIO para buscar precios correctos.",
+              },
             },
-            required: ["customerCity"]
-          }
-        }
+            required: ['customerCity'],
+          },
+        },
       },
       {
-        type: "function",
+        type: 'function',
         function: {
-          name: "generar_orden",
-          description: "Cierra la venta y genera una orden de compra SOLO cuando hayas recolectado TODO: productos, cantidades, logística, pagos y facturación.",
+          name: 'generar_orden',
+          description:
+            'Cierra la venta y genera una orden de compra SOLO cuando hayas recolectado TODO: productos, cantidades, logística, pagos y facturación.',
           parameters: {
-            type: "object",
+            type: 'object',
             properties: {
-              paymentType: { type: "string", enum: ["QR", "EFECTIVO", "TRANSFERENCIA"], description: "El método de pago elegido." },
-              paymentTiming: { type: "string", enum: ["PAY_NOW", "PAY_LATER"], description: "Si pagará AHORA (PAY_NOW) o AL_RECIBIR/AL_RECOGER (PAY_LATER)." },
-              deliveryType: { type: "string", enum: ["RECOJO", "ENVIO"], description: "El método de entrega elegido." },
-              customerCity: { type: "string", description: "La ciudad acordada para la entrega/recojo (ej. 'La Paz'). OBLIGATORIO." },
-              branchId: { type: "string", description: "Si es RECOJO, el ID exacto de la sucursal elegida de la lista del contexto. Si es ENVIO, pon 'N/A'." },
-              shippingDate: { type: "string", description: "Fecha EXACTA de envío/recojo en formato YYYY-MM-DD." },
-              shippingTimeRange: { type: "string", description: "Rango de hora de entrega (ej. 10am-12pm, Tarde, N/A)." },
-              shippingAddress: { type: "string", description: "Dirección de envío exacta o URL de Google Maps (o 'Misma sucursal' si es recojo)." },
-              shippingInstructions: { type: "string", description: "Recomendaciones o instrucciones de entrega (o 'Ninguna' si no hay)." },
-              billingName: { type: "string", description: "Nombre completo del cliente para la factura." },
-              billingNit: { type: "string", description: "NIT o documento del cliente (o 'S/N' si no proporcionó)." },
+              paymentType: {
+                type: 'string',
+                enum: ['QR', 'EFECTIVO', 'TRANSFERENCIA'],
+                description: 'El método de pago elegido.',
+              },
+              paymentTiming: {
+                type: 'string',
+                enum: ['PAY_NOW', 'PAY_LATER'],
+                description:
+                  'Si pagará AHORA (PAY_NOW) o AL_RECIBIR/AL_RECOGER (PAY_LATER).',
+              },
+              deliveryType: {
+                type: 'string',
+                enum: ['RECOJO', 'ENVIO'],
+                description: 'El método de entrega elegido.',
+              },
+              customerCity: {
+                type: 'string',
+                description:
+                  "La ciudad acordada para la entrega/recojo (ej. 'La Paz'). OBLIGATORIO.",
+              },
+              branchId: {
+                type: 'string',
+                description:
+                  "Si es RECOJO, el ID exacto de la sucursal elegida de la lista del contexto. Si es ENVIO, pon 'N/A'.",
+              },
+              shippingDate: {
+                type: 'string',
+                description:
+                  'Fecha EXACTA de envío/recojo en formato YYYY-MM-DD.',
+              },
+              shippingTimeRange: {
+                type: 'string',
+                description:
+                  'Rango de hora de entrega (ej. 10am-12pm, Tarde, N/A).',
+              },
+              shippingAddress: {
+                type: 'string',
+                description:
+                  "Dirección de envío exacta o URL de Google Maps (o 'Misma sucursal' si es recojo).",
+              },
+              shippingInstructions: {
+                type: 'string',
+                description:
+                  "Recomendaciones o instrucciones de entrega (o 'Ninguna' si no hay).",
+              },
+              billingName: {
+                type: 'string',
+                description: 'Nombre completo del cliente para la factura.',
+              },
+              billingNit: {
+                type: 'string',
+                description:
+                  "NIT o documento del cliente (o 'S/N' si no proporcionó).",
+              },
               items: {
-                type: "array",
+                type: 'array',
                 items: {
-                  type: "object",
+                  type: 'object',
                   properties: {
-                    productId: { type: "string", description: "El número de Opción (ej. '1') exacto que devolvió 'buscar_productos'. Si NUNCA usaste 'buscar_productos', escribe el NOMBRE EXACTO del producto (ej. 'Bowl Salteado Pollo')." },
-                    quantity: { type: "number", description: "Cantidad a comprar" }
+                    productId: {
+                      type: 'string',
+                      description:
+                        "El número de Opción (ej. '1') exacto que devolvió 'buscar_productos'. Si NUNCA usaste 'buscar_productos', escribe el NOMBRE EXACTO del producto (ej. 'Bowl Salteado Pollo').",
+                    },
+                    quantity: {
+                      type: 'number',
+                      description: 'Cantidad a comprar',
+                    },
+                    modifications: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      description:
+                        "Lista de notas o modificaciones que el cliente solicitó para este producto específico (ej. ['sin carne', 'soy celíaco']). Si el cliente no pidió nada, usa un array vacío [].",
+                    },
                   },
-                  required: ["productId", "quantity"]
-                }
-              }
+                  required: ['productId', 'quantity'],
+                },
+              },
             },
-            required: ["paymentType", "paymentTiming", "deliveryType", "customerCity", "branchId", "billingName", "items"]
-          }
-        }
+            required: [
+              'paymentType',
+              'paymentTiming',
+              'deliveryType',
+              'customerCity',
+              'branchId',
+              'billingName',
+              'items',
+            ],
+          },
+        },
       },
       {
-        type: "function",
+        type: 'function',
         function: {
-          name: "actualizar_resumen_venta",
-          description: "Guarda información crucial que el cliente haya proporcionado (ej. productos de interés, ciudad, dirección, NIT). LLAMA a esta función para no olvidar detalles importantes si la conversación se vuelve larga.",
+          name: 'actualizar_resumen_venta',
+          description:
+            'Guarda información crucial que el cliente haya proporcionado (ej. productos de interés, ciudad, dirección, NIT). LLAMA a esta función para no olvidar detalles importantes si la conversación se vuelve larga.',
           parameters: {
-            type: "object",
+            type: 'object',
             properties: {
-              resumen: { type: "string", description: "Un breve texto estructurado con los datos confirmados del cliente hasta el momento." }
+              resumen: {
+                type: 'string',
+                description:
+                  'Un breve texto estructurado con los datos confirmados del cliente hasta el momento.',
+              },
             },
-            required: ["resumen"]
-          }
-        }
-      }
+            required: ['resumen'],
+          },
+        },
+      },
     ];
   }
 
   // Función profesional para crear una búsqueda tolerante a acentos y plurales
-  private buildFlexibleRegex(query: string): { regex: RegExp, rootWords: string[] } {
-    const normalizedQuery = query.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const stopWords = ['un', 'una', 'el', 'la', 'los', 'las', 'para', 'con', 'de', 'en', 'quiero', 'busco', 'necesito', 'algún', 'algun', 'cual', 'que'];
-    
-    const words = normalizedQuery.split(/\s+/)
-      .map(w => w.toLowerCase())
-      .filter(w => w.length > 2 && !stopWords.includes(w));
-    
-    if (words.length === 0) return { regex: new RegExp(normalizedQuery, 'i'), rootWords: [] };
+  private buildFlexibleRegex(query: string): {
+    regex: RegExp;
+    rootWords: string[];
+  } {
+    const normalizedQuery = query
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    const stopWords = [
+      'un',
+      'una',
+      'el',
+      'la',
+      'los',
+      'las',
+      'para',
+      'con',
+      'de',
+      'en',
+      'quiero',
+      'busco',
+      'necesito',
+      'algún',
+      'algun',
+      'cual',
+      'que',
+    ];
 
-    const rootWords = words.map(w => {
+    const words = normalizedQuery
+      .split(/\s+/)
+      .map((w) => w.toLowerCase())
+      .filter((w) => w.length > 2 && !stopWords.includes(w));
+
+    if (words.length === 0)
+      return { regex: new RegExp(normalizedQuery, 'i'), rootWords: [] };
+
+    const rootWords = words.map((w) => {
       let root = w;
       if (root.endsWith('es') && root.length > 4) {
         root = root.slice(0, -2);
@@ -109,25 +221,38 @@ export class SalesToolsService {
       }
       return root;
     });
-    
+
     const vowelMap: Record<string, string> = {
-      'a': '[aáAÁ]', 'e': '[eéEÉ]', 'i': '[iíIÍ]', 'o': '[oóOÓ]', 'u': '[uúüUÚÜ]'
+      a: '[aáAÁ]',
+      e: '[eéEÉ]',
+      i: '[iíIÍ]',
+      o: '[oóOÓ]',
+      u: '[uúüUÚÜ]',
     };
-    
-    const accentAgnosticRoots = rootWords.map(root => {
-      const replaced = root.split('').map(char => vowelMap[char] || char).join('');
+
+    const accentAgnosticRoots = rootWords.map((root) => {
+      const replaced = root
+        .split('')
+        .map((char) => vowelMap[char] || char)
+        .join('');
       return replaced + '(es|s)?';
     });
-    
+
     const regexString = accentAgnosticRoots.join('|');
     this.logger.debug(`🧠 Regex generado para búsqueda: /${regexString}/i`);
     return { regex: new RegExp(regexString, 'i'), rootWords };
   }
 
-  async handleProductSearch(args: any, tenantObjectId: Types.ObjectId, conversation: any): Promise<string> {
-    this.logger.log(`🔍 INICIO BÚSQUEDA - Query: "${args.query || ''}" | Ciudad: "${args.customerCity}"`);
-    
-    let filter: any = { tenantId: tenantObjectId, isActive: true };
+  async handleProductSearch(
+    args: any,
+    tenantObjectId: Types.ObjectId,
+    conversation: any,
+  ): Promise<string> {
+    this.logger.log(
+      `🔍 INICIO BÚSQUEDA - Query: "${args.query || ''}" | Ciudad: "${args.customerCity}"`,
+    );
+
+    const filter: any = { tenantId: tenantObjectId, isActive: true };
     let searchResults = [];
 
     let matchingCategoryIdsStr: string[] = [];
@@ -135,74 +260,103 @@ export class SalesToolsService {
 
     if (args.query && args.query.trim() !== '') {
       this.logger.debug(`📝 Procesando query del usuario: "${args.query}"`);
-      const { regex: flexibleRegex, rootWords } = this.buildFlexibleRegex(args.query);
+      const { regex: flexibleRegex, rootWords } = this.buildFlexibleRegex(
+        args.query,
+      );
       queryRootWords = rootWords;
 
-      const matchingCategories = await this.categoryModel.find({ 
-        tenantId: tenantObjectId, 
+      const matchingCategories = await this.categoryModel.find({
+        tenantId: tenantObjectId,
         name: flexibleRegex,
-        isActive: true
+        isActive: true,
       });
-      const categoryIds = matchingCategories.map(c => c._id);
-      matchingCategoryIdsStr = matchingCategories.map(c => c._id.toString());
+      const categoryIds = matchingCategories.map((c) => c._id);
+      matchingCategoryIdsStr = matchingCategories.map((c) => c._id.toString());
 
       const orConditions: any[] = [
         { name: flexibleRegex },
         { keywords: flexibleRegex },
-        { occasions: flexibleRegex }
+        { occasions: flexibleRegex },
       ];
 
       if (categoryIds.length > 0) {
         orConditions.push({ categoryId: { $in: categoryIds } });
-        this.logger.log(`🏷️ Match con Categorías: ${matchingCategories.map(c => c.name).join(', ')}`);
+        this.logger.log(
+          `🏷️ Match con Categorías: ${matchingCategories.map((c) => c.name).join(', ')}`,
+        );
       } else {
         this.logger.debug(`🏷️ No hubo match con ninguna Categoría.`);
       }
 
       filter.$or = orConditions;
-      this.logger.debug(`🛠️ Ejecutando consulta $or en MongoDB con condiciones: ${JSON.stringify(orConditions)}`);
+      this.logger.debug(
+        `🛠️ Ejecutando consulta $or en MongoDB con condiciones: ${JSON.stringify(orConditions)}`,
+      );
 
-      searchResults = await this.productModel.find(filter)
+      searchResults = await this.productModel
+        .find(filter)
         .populate('prices.cityId')
         .limit(150);
-      
-      this.logger.log(`📦 MongoDB devolvió ${searchResults.length} productos coincidentes antes de filtrar por ciudad y precio.`);
+
+      this.logger.log(
+        `📦 MongoDB devolvió ${searchResults.length} productos coincidentes antes de filtrar por ciudad y precio.`,
+      );
     } else {
       this.logger.debug(`📝 Query vacío. Buscando catálogo general...`);
-      searchResults = await this.productModel.find(filter).populate('prices.cityId').limit(50);
-      this.logger.log(`📦 MongoDB devolvió ${searchResults.length} productos del catálogo general.`);
+      searchResults = await this.productModel
+        .find(filter)
+        .populate('prices.cityId')
+        .limit(50);
+      this.logger.log(
+        `📦 MongoDB devolvió ${searchResults.length} productos del catálogo general.`,
+      );
     }
 
     const regexCity = new RegExp(args.customerCity, 'i');
     let validProducts = [];
-    
-    this.logger.debug(`🏙️ Filtrando en memoria por Ciudad: "${args.customerCity}" y Presupuesto: Min: ${args.minPrice || 'N/A'}, Max: ${args.maxPrice || 'N/A'}`);
+
+    this.logger.debug(
+      `🏙️ Filtrando en memoria por Ciudad: "${args.customerCity}" y Presupuesto: Min: ${args.minPrice || 'N/A'}, Max: ${args.maxPrice || 'N/A'}`,
+    );
 
     for (const p of searchResults) {
       let matchedPrice = null;
       if (p.prices && p.prices.length > 0) {
-        const priceObj = p.prices.find((pr: any) => pr.cityId && pr.cityId.name && regexCity.test(pr.cityId.name));
+        const priceObj = p.prices.find(
+          (pr: any) =>
+            pr.cityId && pr.cityId.name && regexCity.test(pr.cityId.name),
+        );
         if (priceObj) {
           matchedPrice = priceObj.price;
         }
       }
 
       if (matchedPrice !== null) {
-        let passMin = args.minPrice === undefined || args.minPrice === null || matchedPrice >= args.minPrice;
-        let passMax = args.maxPrice === undefined || args.maxPrice === null || matchedPrice <= args.maxPrice;
+        const passMin =
+          args.minPrice === undefined ||
+          args.minPrice === null ||
+          matchedPrice >= args.minPrice;
+        const passMax =
+          args.maxPrice === undefined ||
+          args.maxPrice === null ||
+          matchedPrice <= args.maxPrice;
         if (passMin && passMax) {
           validProducts.push({ ...p.toObject(), matchedPrice });
         } else {
-          this.logger.debug(`❌ Producto "${p.name}" descartado por presupuesto (Precio: $${matchedPrice}).`);
+          this.logger.debug(
+            `❌ Producto "${p.name}" descartado por presupuesto (Precio: $${matchedPrice}).`,
+          );
         }
       } else {
-        this.logger.debug(`❌ Producto "${p.name}" descartado porque no tiene precio registrado para la ciudad "${args.customerCity}".`);
+        this.logger.debug(
+          `❌ Producto "${p.name}" descartado porque no tiene precio registrado para la ciudad "${args.customerCity}".`,
+        );
       }
     }
 
     // 🧠 Algoritmo de Scoring (Puntuación de Relevancia)
     if (queryRootWords.length > 0) {
-      validProducts = validProducts.map(p => {
+      validProducts = validProducts.map((p) => {
         let score = 0;
         const nameLower = (p.name || '').toLowerCase();
         const keywordsLower = (p.keywords || []).join(' ').toLowerCase();
@@ -224,16 +378,23 @@ export class SalesToolsService {
 
       // Ordenar por puntuación de mayor a menor
       validProducts.sort((a, b) => b.score - a.score);
-      this.logger.debug(`🎯 Top 3 Relevantes tras Scoring: ${validProducts.slice(0,3).map(p => `"${p.name}" (Score: ${p.score})`).join(', ')}`);
+      this.logger.debug(
+        `🎯 Top 3 Relevantes tras Scoring: ${validProducts
+          .slice(0, 3)
+          .map((p) => `"${p.name}" (Score: ${p.score})`)
+          .join(', ')}`,
+      );
     }
 
     validProducts = validProducts.slice(0, 10);
 
-    let resultText = "Resultados de la búsqueda (Catálogo interno):\n";
+    let resultText = 'Resultados de la búsqueda (Catálogo interno):\n';
     if (validProducts.length > 0) {
-      this.logger.log(`✅ RESULTADO FINAL: ${validProducts.length} productos válidos enviados a la IA.`);
+      this.logger.log(
+        `✅ RESULTADO FINAL: ${validProducts.length} productos válidos enviados a la IA.`,
+      );
 
-      conversation.lastSearchResults = validProducts.map(p => p._id);
+      conversation.lastSearchResults = validProducts.map((p) => p._id);
       await conversation.save();
 
       validProducts.forEach((p: any, index: number) => {
@@ -243,11 +404,15 @@ export class SalesToolsService {
         this.logger.debug(`➡️ Enviado a IA: ${itemLine}`);
         resultText += itemLine + '\n';
       });
-      
-      resultText += "\n[REGLA DEL SISTEMA]: Selecciona un MÁXIMO de 3 opciones de esta lista para mostrárselas al cliente de forma resumida y conversacional. NUNCA muestres más de 3.";
+
+      resultText +=
+        '\n[REGLA DEL SISTEMA]: Selecciona un MÁXIMO de 3 opciones de esta lista para mostrárselas al cliente de forma resumida y conversacional. NUNCA muestres más de 3.';
     } else {
-      this.logger.warn(`❌ RESULTADO FINAL: No quedaron productos después del filtrado.`);
-      resultText = "No se encontraron productos exactos con ese término. Puedes sugerirle al cliente que intente otra palabra clave o pregúntale de otra forma.";
+      this.logger.warn(
+        `❌ RESULTADO FINAL: No quedaron productos después del filtrado.`,
+      );
+      resultText =
+        'No se encontraron productos exactos con ese término. Puedes sugerirle al cliente que intente otra palabra clave o pregúntale de otra forma.';
     }
 
     return resultText;
@@ -267,14 +432,17 @@ export class SalesToolsService {
     branches: any[],
     customer: any,
     conversation: any,
-    jid: string
+    jid: string,
   ): Promise<{ success: boolean; message: string }> {
-    
     // Update Customer details if provided
     if (args.billingName || args.billingNit) {
       customer.fullName = args.billingName || customer.fullName;
       customer.nit = args.billingNit || customer.nit;
-      if (args.deliveryType === 'ENVIO' && args.shippingAddress && args.shippingAddress !== 'Misma sucursal') {
+      if (
+        args.deliveryType === 'ENVIO' &&
+        args.shippingAddress &&
+        args.shippingAddress !== 'Misma sucursal'
+      ) {
         customer.address = args.shippingAddress;
       }
       await customer.save();
@@ -285,18 +453,34 @@ export class SalesToolsService {
     today.setHours(0, 0, 0, 0);
     const ordersToday = await this.orderModel.countDocuments({
       customerId: customer._id,
-      createdAt: { $gte: today }
+      createdAt: { $gte: today },
     });
     const maxOrders = tenant.maxOrdersPerDay || 5;
     if (ordersToday >= maxOrders) {
-      this.logger.warn(`Fraude o Límite: Cliente ${jid} alcanzó ${ordersToday} órdenes hoy.`);
-      return { success: false, message: "Lo siento, has alcanzado el límite máximo de pedidos por hoy. Por favor, contáctanos directamente o intenta mañana." };
+      this.logger.warn(
+        `Fraude o Límite: Cliente ${jid} alcanzó ${ordersToday} órdenes hoy.`,
+      );
+      return {
+        success: false,
+        message:
+          'Lo siento, has alcanzado el límite máximo de pedidos por hoy. Por favor, contáctanos directamente o intenta mañana.',
+      };
     }
 
-    const paymentMap: Record<string, string> = { 'EFECTIVO': 'CASH', 'TRANSFERENCIA': 'TRANSFER', 'QR': 'QR' };
-    const deliveryMap: Record<string, string> = { 'RECOJO': 'PICKUP', 'ENVIO': 'DELIVERY' };
-    const timingMap: Record<string, string> = { 'PAY_NOW': 'PAY_NOW', 'PAY_LATER': 'PAY_LATER' };
-    
+    const paymentMap: Record<string, string> = {
+      EFECTIVO: 'CASH',
+      TRANSFERENCIA: 'TRANSFER',
+      QR: 'QR',
+    };
+    const deliveryMap: Record<string, string> = {
+      RECOJO: 'PICKUP',
+      ENVIO: 'DELIVERY',
+    };
+    const timingMap: Record<string, string> = {
+      PAY_NOW: 'PAY_NOW',
+      PAY_LATER: 'PAY_LATER',
+    };
+
     let totalAmount = 0;
     const orderItems = [];
     let isOrderValid = true;
@@ -305,31 +489,55 @@ export class SalesToolsService {
     // Validación Temprana de Datos Completos
     if (!args.customerCity) {
       isOrderValid = false;
-      validationErrorMsg = "Falta la ciudad del cliente. Por favor, pregúntale de qué ciudad es antes de generar la orden.";
-    } else if (args.deliveryType === 'ENVIO' && (!args.shippingAddress || args.shippingAddress.trim() === '')) {
+      validationErrorMsg =
+        'Falta la ciudad del cliente. Por favor, pregúntale de qué ciudad es antes de generar la orden.';
+    } else if (
+      args.deliveryType === 'ENVIO' &&
+      (!args.shippingAddress || args.shippingAddress.trim() === '')
+    ) {
       isOrderValid = false;
-      validationErrorMsg = "El cliente eligió ENVIO, pero falta la dirección exacta. Pídesela antes de generar la orden.";
-    } else if (args.deliveryType === 'RECOJO' && (!args.branchId || args.branchId === 'N/A')) {
+      validationErrorMsg =
+        'El cliente eligió ENVIO, pero falta la dirección exacta. Pídesela antes de generar la orden.';
+    } else if (
+      args.deliveryType === 'RECOJO' &&
+      (!args.branchId || args.branchId === 'N/A')
+    ) {
       isOrderValid = false;
-      validationErrorMsg = "El cliente eligió RECOJO, pero falta especificar el ID de la sucursal. Ofrécele las opciones antes de generar la orden.";
+      validationErrorMsg =
+        'El cliente eligió RECOJO, pero falta especificar el ID de la sucursal. Ofrécele las opciones antes de generar la orden.';
     } else if (!args.items || args.items.length === 0) {
       isOrderValid = false;
-      validationErrorMsg = "El carrito de compras está vacío.";
-    } else if (!args.billingName || args.billingName.trim() === '' || args.billingName.toLowerCase() === 'cliente' || args.billingName.toLowerCase().includes('no propor')) {
+      validationErrorMsg = 'El carrito de compras está vacío.';
+    } else if (
+      !args.billingName ||
+      args.billingName.trim() === '' ||
+      args.billingName.toLowerCase() === 'cliente' ||
+      args.billingName.toLowerCase().includes('no propor')
+    ) {
       isOrderValid = false;
-      validationErrorMsg = "Falta el nombre completo para la factura. Debes preguntárselo explícitamente al cliente antes de generar la orden.";
+      validationErrorMsg =
+        'Falta el nombre completo para la factura. Debes preguntárselo explícitamente al cliente antes de generar la orden.';
     }
 
     const MAX_ITEMS_PER_PRODUCT = tenant.maxItemsPerOrder || 20;
-    
+
     // Consolidación de items y validación matemática de cantidades
-    const consolidatedItemsMap = new Map<string, number>();
+    const consolidatedItemsMap = new Map<
+      string,
+      { quantity: number; modifications: string[] }
+    >();
     if (isOrderValid) {
       for (const item of args.items) {
         let productId = item.productId;
         const quantity = item.quantity;
-        
-        if (!productId || quantity <= 0 || !Number.isInteger(quantity) || quantity > MAX_ITEMS_PER_PRODUCT) {
+        const modifications: string[] = item.modifications || [];
+
+        if (
+          !productId ||
+          quantity <= 0 ||
+          !Number.isInteger(quantity) ||
+          quantity > MAX_ITEMS_PER_PRODUCT
+        ) {
           isOrderValid = false;
           validationErrorMsg = `La cantidad o el ID para el producto indicado son inválidos. La cantidad debe ser un número entero mayor a 0.`;
           break;
@@ -339,19 +547,33 @@ export class SalesToolsService {
 
         let actualMongoId = productId;
         const optionIndex = parseInt(productId) - 1;
-        if (!isNaN(optionIndex) && conversation.lastSearchResults && conversation.lastSearchResults[optionIndex]) {
-          actualMongoId = conversation.lastSearchResults[optionIndex].toString();
+        if (
+          !isNaN(optionIndex) &&
+          conversation.lastSearchResults &&
+          conversation.lastSearchResults[optionIndex]
+        ) {
+          actualMongoId =
+            conversation.lastSearchResults[optionIndex].toString();
         }
 
-        const currentQty = consolidatedItemsMap.get(actualMongoId) || 0;
-        consolidatedItemsMap.set(actualMongoId, currentQty + quantity);
+        const existing = consolidatedItemsMap.get(actualMongoId);
+        if (existing) {
+          existing.quantity += quantity;
+          existing.modifications = [
+            ...new Set([...existing.modifications, ...modifications]),
+          ];
+        } else {
+          consolidatedItemsMap.set(actualMongoId, { quantity, modifications });
+        }
       }
     }
 
     // Validación de Sucursal para Recojo
     let selectedBranchId = null;
     if (isOrderValid && args.deliveryType === 'RECOJO') {
-      const matchedBranch = branches.find(b => b._id.toString() === args.branchId);
+      const matchedBranch = branches.find(
+        (b) => b._id.toString() === args.branchId,
+      );
       if (!matchedBranch) {
         isOrderValid = false;
         validationErrorMsg = `No pude encontrar el ID de sucursal "${args.branchId}". Por favor, verifica el nombre y confírmame.`;
@@ -364,7 +586,8 @@ export class SalesToolsService {
     const regexCity = new RegExp(args.customerCity, 'i');
 
     if (isOrderValid) {
-      for (const [productId, quantity] of consolidatedItemsMap.entries()) {
+      for (const [productId, itemData] of consolidatedItemsMap.entries()) {
+        const { quantity, modifications } = itemData;
         if (quantity > MAX_ITEMS_PER_PRODUCT) {
           isOrderValid = false;
           validationErrorMsg = `La cantidad solicitada de un producto supera el límite de ${MAX_ITEMS_PER_PRODUCT} unidades por orden.`;
@@ -374,29 +597,41 @@ export class SalesToolsService {
         let productDb = null;
         try {
           if (Types.ObjectId.isValid(productId)) {
-            productDb = await this.productModel.findOne({ 
-              tenantId: tenantObjectId, 
-              _id: new Types.ObjectId(productId)
-            }).populate('prices.cityId');
+            productDb = await this.productModel
+              .findOne({
+                tenantId: tenantObjectId,
+                _id: new Types.ObjectId(productId),
+              })
+              .populate('prices.cityId');
           }
-        } catch(e) {}
+        } catch (e) {}
 
         if (!productDb) {
           // Fallback 1: Buscar por regex exacto o parcial
-          let cleanName = productId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          productDb = await this.productModel.findOne({
-            tenantId: tenantObjectId,
-            name: new RegExp(cleanName, 'i')
-          }).populate('prices.cityId');
+          const cleanName = productId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          productDb = await this.productModel
+            .findOne({
+              tenantId: tenantObjectId,
+              name: new RegExp(cleanName, 'i'),
+            })
+            .populate('prices.cityId');
         }
 
         if (!productDb) {
           // Fallback 2: Búsqueda $text (Fuzzy)
-          const searchResults = await this.productModel.find(
-            { tenantId: tenantObjectId, $text: { $search: productId }, isActive: true },
-            { score: { $meta: "textScore" } }
-          ).sort({ score: { $meta: "textScore" } }).limit(1).populate('prices.cityId');
-          
+          const searchResults = await this.productModel
+            .find(
+              {
+                tenantId: tenantObjectId,
+                $text: { $search: productId },
+                isActive: true,
+              },
+              { score: { $meta: 'textScore' } },
+            )
+            .sort({ score: { $meta: 'textScore' } })
+            .limit(1)
+            .populate('prices.cityId');
+
           if (searchResults.length > 0) {
             productDb = searchResults[0];
           }
@@ -405,7 +640,10 @@ export class SalesToolsService {
         if (productDb) {
           let dbPrice = null;
           if (productDb.prices && productDb.prices.length > 0) {
-            const priceObj = productDb.prices.find((pr: any) => pr.cityId && pr.cityId.name && regexCity.test(pr.cityId.name));
+            const priceObj = productDb.prices.find(
+              (pr: any) =>
+                pr.cityId && pr.cityId.name && regexCity.test(pr.cityId.name),
+            );
             if (priceObj) dbPrice = priceObj.price;
           }
 
@@ -414,9 +652,10 @@ export class SalesToolsService {
               productId: productDb._id,
               name: productDb.name,
               quantity: quantity,
-              price: dbPrice
+              price: dbPrice,
+              modifications,
             });
-            totalAmount += (quantity * dbPrice);
+            totalAmount += quantity * dbPrice;
           } else {
             isOrderValid = false;
             validationErrorMsg = `El producto "${productDb.name}" no está disponible o no tiene precio para la ciudad de ${args.customerCity}.`;
@@ -431,10 +670,12 @@ export class SalesToolsService {
     }
 
     if (isOrderValid && orderItems.length > 0) {
-      this.logger.log(`📦 Creando orden en BD con ${orderItems.length} items y total $${totalAmount} (Validada en DB)`);
+      this.logger.log(
+        `📦 Creando orden en BD con ${orderItems.length} items y total $${totalAmount} (Validada en DB)`,
+      );
       await this.orderModel.create({
         tenantId: tenantObjectId,
-        branchId: selectedBranchId as any,
+        branchId: selectedBranchId,
         customerId: customer._id,
         items: orderItems,
         totalAmount,
@@ -448,24 +689,47 @@ export class SalesToolsService {
         shippingTimeRange: args.shippingTimeRange,
         shippingAddress: args.shippingAddress,
         status: 'PENDING',
-        isAiGenerated: true
+        isAiGenerated: true,
       });
       this.logger.debug(`✅ Orden guardada exitosamente.`);
 
-      if (paymentMap[args.paymentType] === 'QR' && timingMap[args.paymentTiming] === 'PAY_NOW') {
+      if (
+        paymentMap[args.paymentType] === 'QR' &&
+        timingMap[args.paymentTiming] === 'PAY_NOW'
+      ) {
         setTimeout(() => {
           if (tenant.qrImageBase64) {
-            this.whatsappService.sendImageFromBase64(tenantObjectId.toString(), jid, tenant.qrImageBase64, "Aquí tienes nuestro código QR oficial para realizar el pago. Por favor, envíanos el comprobante por este medio.");
+            this.whatsappService.sendImageFromBase64(
+              tenantObjectId.toString(),
+              jid,
+              tenant.qrImageBase64,
+              'Aquí tienes nuestro código QR oficial para realizar el pago. Por favor, envíanos el comprobante por este medio.',
+            );
           } else {
-            this.whatsappService.sendMessage(tenantObjectId.toString(), jid, "Tu orden fue generada. En breve un administrador te enviará el código QR oficial para realizar el pago.");
+            this.whatsappService.sendMessage(
+              tenantObjectId.toString(),
+              jid,
+              'Tu orden fue generada. En breve un administrador te enviará el código QR oficial para realizar el pago.',
+            );
           }
         }, 1500);
       }
 
-      return { success: true, message: "¡Perfecto! He registrado tu orden de compra con éxito. Nuestro equipo se encargará del resto. ¡Muchas gracias por tu compra!" };
+      return {
+        success: true,
+        message:
+          '¡Perfecto! He registrado tu orden de compra con éxito. Nuestro equipo se encargará del resto. ¡Muchas gracias por tu compra!',
+      };
     } else {
-      this.logger.warn(`⚠️ La orden fue rechazada por el servidor: ${validationErrorMsg}`);
-      return { success: false, message: validationErrorMsg || "Parece que hubo un problema identificando los productos de nuestro catálogo o validando tu orden. Por favor, intentemos de nuevo." };
+      this.logger.warn(
+        `⚠️ La orden fue rechazada por el servidor: ${validationErrorMsg}`,
+      );
+      return {
+        success: false,
+        message:
+          validationErrorMsg ||
+          'Parece que hubo un problema identificando los productos de nuestro catálogo o validando tu orden. Por favor, intentemos de nuevo.',
+      };
     }
   }
 }

@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { TenantService } from './tenant.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -21,7 +30,10 @@ export class TenantController {
   }
 
   @Get('my-tenant')
-  @ApiOperation({ summary: 'Obtener información de mi empresa actual (Todos los roles del Tenant)' })
+  @ApiOperation({
+    summary:
+      'Obtener información de mi empresa actual (Todos los roles del Tenant)',
+  })
   @Roles('OWNER', 'ADMIN', 'VIEWER')
   async getMyTenant(@TenantId() tenantId: string) {
     return this.tenantService.findOne(tenantId);

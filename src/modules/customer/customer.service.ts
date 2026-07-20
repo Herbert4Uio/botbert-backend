@@ -5,9 +5,13 @@ import { Customer } from './schemas/customer.schema';
 
 @Injectable()
 export class CustomerService {
-  constructor(@InjectModel(Customer.name) private customerModel: Model<Customer>) {}
+  constructor(
+    @InjectModel(Customer.name) private customerModel: Model<Customer>,
+  ) {}
 
   async findAll(tenantId: string) {
-    return this.customerModel.find({ tenantId: new Types.ObjectId(tenantId) }).exec();
+    return this.customerModel
+      .find({ tenantId: new Types.ObjectId(tenantId) })
+      .exec();
   }
 }

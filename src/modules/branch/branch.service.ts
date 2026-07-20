@@ -8,7 +8,10 @@ export class BranchService {
   constructor(@InjectModel(Branch.name) private branchModel: Model<Branch>) {}
 
   async findAll(tenantId: string) {
-    return this.branchModel.find({ tenantId: new Types.ObjectId(tenantId) }).populate('cityId').exec();
+    return this.branchModel
+      .find({ tenantId: new Types.ObjectId(tenantId) })
+      .populate('cityId')
+      .exec();
   }
 
   async create(tenantId: string, data: any) {
@@ -28,14 +31,14 @@ export class BranchService {
     return this.branchModel.findOneAndUpdate(
       { _id: new Types.ObjectId(id), tenantId: new Types.ObjectId(tenantId) },
       payload,
-      { new: true }
+      { new: true },
     );
   }
 
   async remove(tenantId: string, id: string) {
     return this.branchModel.findOneAndDelete({
       _id: new Types.ObjectId(id),
-      tenantId: new Types.ObjectId(tenantId)
+      tenantId: new Types.ObjectId(tenantId),
     });
   }
 }

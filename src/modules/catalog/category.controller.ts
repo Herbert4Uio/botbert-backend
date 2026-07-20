@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Put,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiHeader, ApiOperation } from '@nestjs/swagger';
 import { CategoryService } from './category.service';
 import { TenantId } from '../../common/decorators/tenant.decorator';
@@ -37,7 +46,11 @@ export class CategoryController {
   @Put(':id')
   @ApiOperation({ summary: 'Editar categoría' })
   @Roles('OWNER', 'ADMIN')
-  async update(@TenantId() tenantId: string, @Param('id') id: string, @Body() updateCategoryDto: any) {
+  async update(
+    @TenantId() tenantId: string,
+    @Param('id') id: string,
+    @Body() updateCategoryDto: any,
+  ) {
     return this.categoryService.update(tenantId, id, updateCategoryDto);
   }
 

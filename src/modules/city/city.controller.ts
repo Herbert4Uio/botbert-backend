@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { CityService } from './city.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -24,7 +33,11 @@ export class CityController {
 
   @Put(':id')
   @Roles('OWNER', 'ADMIN')
-  async update(@TenantId() tenantId: string, @Param('id') id: string, @Body() data: any) {
+  async update(
+    @TenantId() tenantId: string,
+    @Param('id') id: string,
+    @Body() data: any,
+  ) {
     return this.cityService.update(tenantId, id, data);
   }
 

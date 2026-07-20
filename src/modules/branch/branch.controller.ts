@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiHeader, ApiOperation } from '@nestjs/swagger';
 import { BranchService } from './branch.service';
 import { TenantId } from '../../common/decorators/tenant.decorator';
@@ -28,9 +37,15 @@ export class BranchController {
   }
 
   @Put(':id')
-  @ApiOperation({ summary: 'Actualizar configuración de la sucursal (ej. SystemPrompt)' })
+  @ApiOperation({
+    summary: 'Actualizar configuración de la sucursal (ej. SystemPrompt)',
+  })
   @Roles('OWNER', 'ADMIN')
-  async updateBranch(@TenantId() tenantId: string, @Param('id') id: string, @Body() data: any) {
+  async updateBranch(
+    @TenantId() tenantId: string,
+    @Param('id') id: string,
+    @Body() data: any,
+  ) {
     return this.branchService.update(tenantId, id, data);
   }
 

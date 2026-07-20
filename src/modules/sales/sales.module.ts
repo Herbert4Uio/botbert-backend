@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Conversation, ConversationSchema } from './schemas/conversation.schema';
+import {
+  Conversation,
+  ConversationSchema,
+} from './schemas/conversation.schema';
 import { AiAudit, AiAuditSchema } from './schemas/ai-audit.schema';
 import { SalesService } from './sales.service';
 import { WhatsappModule } from '../whatsapp/whatsapp.module';
@@ -13,12 +16,14 @@ import { TenantModule } from '../tenant/tenant.module';
 
 import { SalesController } from './sales.controller';
 import { SalesToolsService } from './sales-tools.service';
+import { IntentClassifier } from './intent/intent-classifier.service';
+import { IntentHandlers } from './intent/intent-handlers.service';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Conversation.name, schema: ConversationSchema },
-      { name: AiAudit.name, schema: AiAuditSchema }
+      { name: AiAudit.name, schema: AiAuditSchema },
     ]),
     WhatsappModule,
     AiModule,
@@ -29,7 +34,12 @@ import { SalesToolsService } from './sales-tools.service';
     OrderModule,
   ],
   controllers: [SalesController],
-  providers: [SalesService, SalesToolsService],
+  providers: [
+    SalesService,
+    SalesToolsService,
+    IntentClassifier,
+    IntentHandlers,
+  ],
   exports: [MongooseModule, SalesService],
 })
 export class SalesModule {}

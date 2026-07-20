@@ -1,4 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { SalesService } from './sales.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -27,8 +36,22 @@ export class SalesController {
   async toggleAiPause(
     @TenantId() tenantId: string,
     @Param('id') conversationId: string,
-    @Body('isAiPaused') isAiPaused: boolean
+    @Body('isAiPaused') isAiPaused: boolean,
   ) {
-    return this.salesService.toggleAiPause(tenantId, conversationId, isAiPaused);
+    return this.salesService.toggleAiPause(
+      tenantId,
+      conversationId,
+      isAiPaused,
+    );
+  }
+
+  @Post('generate-prompt')
+  @Roles('OWNER', 'ADMIN')
+  async generatePrompt(@Body('businessDescription') businessDescription: string) {
+    if (!businessDescription || businessDescription.trim().length < 10) {
+      return { error: 'La descripción del negocio debe tener al menos 10 caracteres.' };
+    }
+    const prompt = await this.salesService.generatePrompt(businessDescription);
+    return { prompt };
   }
 }

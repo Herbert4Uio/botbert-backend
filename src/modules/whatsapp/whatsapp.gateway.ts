@@ -1,4 +1,9 @@
-import { WebSocketGateway, WebSocketServer, OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
+import {
+  WebSocketGateway,
+  WebSocketServer,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+} from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -7,9 +12,11 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
   cors: {
     origin: '*',
   },
-  namespace: '/whatsapp'
+  namespace: '/whatsapp',
 })
-export class WhatsappGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class WhatsappGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
@@ -29,7 +36,10 @@ export class WhatsappGateway implements OnGatewayConnection, OnGatewayDisconnect
     this.server.to(tenantId).emit('qr', { qr });
   }
 
-  emitConnectionStatus(tenantId: string, status: 'CONNECTED' | 'DISCONNECTED' | 'QR_READY') {
+  emitConnectionStatus(
+    tenantId: string,
+    status: 'CONNECTED' | 'DISCONNECTED' | 'QR_READY',
+  ) {
     this.server.to(tenantId).emit('status', { status });
   }
 }

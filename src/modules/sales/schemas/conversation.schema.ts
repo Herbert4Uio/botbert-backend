@@ -16,6 +16,17 @@ class MessageItem {
   timestamp: Date;
 }
 
+export enum ConversationPhase {
+  GREETING = 'GREETING',
+  CITY_REQUIRED = 'CITY_REQUIRED',
+  DISCOVERY = 'DISCOVERY',
+  SEARCH_READY = 'SEARCH_READY',
+  RECOMMENDATION = 'RECOMMENDATION',
+  LOGISTICS = 'LOGISTICS',
+  ORDER_READY = 'ORDER_READY',
+  COMPLETED = 'COMPLETED',
+}
+
 @Schema({ timestamps: true })
 export class Conversation extends Document {
   @Prop({ type: Types.ObjectId, ref: 'Tenant', required: true })
@@ -47,6 +58,13 @@ export class Conversation extends Document {
 
   @Prop({ type: [Types.ObjectId], ref: 'Product', default: [] })
   lastSearchResults: Types.ObjectId[];
+
+  @Prop({
+    type: String,
+    enum: Object.values(ConversationPhase),
+    default: ConversationPhase.GREETING,
+  })
+  conversationPhase: ConversationPhase;
 }
 
 export const ConversationSchema = SchemaFactory.createForClass(Conversation);
