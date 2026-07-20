@@ -19,6 +19,20 @@ export function buildSalesPrompt(
       ? selectedSuggestions.join(', ')
       : 'opciones variadas';
 
+  const ctx = conversation.contextSummary || {};
+  const contextLines: string[] = [];
+  if (ctx.city) contextLines.push(`- Ciudad: ${ctx.city}`);
+  if (ctx.budget) {
+    const b = ctx.budget;
+    if (b.min && b.max) contextLines.push(`- Presupuesto: $${b.min} - $${b.max}`);
+    else if (b.max) contextLines.push(`- Presupuesto máximo: $${b.max}`);
+    else if (b.min) contextLines.push(`- Presupuesto mínimo: $${b.min}`);
+  }
+  if (ctx.keywords?.length) contextLines.push(`- Preferencias: ${ctx.keywords.join(', ')}`);
+  if (ctx.hasAddress) contextLines.push(`- Tiene dirección de entrega: Sí`);
+  const summaryText = conversation.summary || 'Aún no hay datos guardados.';
+  const structuredContext = contextLines.length > 0 ? contextLines.join('\n') : 'No hay datos aún.';
+
   const baseContext = `
 ==================================================
 [CONTEXTO DEL SISTEMA] (Invariable)
@@ -29,8 +43,11 @@ Nombre: ${tenant.name}
 Sucursales disponibles:
 ${branchOptions || 'No hay sucursales registradas para recojo.'}
 
-[RESUMEN DE DATOS OBTENIDOS HASTA AHORA]
-${conversation.summary || 'Aún no hay datos guardados.'}
+[DATOS CONFIRMADOS DEL CLIENTE]
+${structuredContext}
+
+[RESUMEN GENERADO POR EL ASISTENTE]
+${summaryText}
 
 FECHA ACTUAL: ${new Date().toISOString().split('T')[0]}
 `;

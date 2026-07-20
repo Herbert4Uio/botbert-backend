@@ -14,7 +14,7 @@ import { Product } from '../catalog/schemas/product.schema';
 import { Category } from '../catalog/schemas/category.schema';
 import { IntentClassifier } from './intent/intent-classifier.service';
 import { IntentHandlers } from './intent/intent-handlers.service';
-import { Intent } from './intent/intent.types';
+import { Intent, ConversationPhase } from './intent/intent.types';
 
 @Injectable()
 export class SalesService implements OnModuleInit {
@@ -299,7 +299,7 @@ export class SalesService implements OnModuleInit {
           assistantResponse &&
           (!aiMessage.tool_calls || aiMessage.tool_calls.length === 0)
         ) {
-          const listMatches = assistantResponse.match(/\d+[\.)]\s/g) || [];
+          const listMatches = assistantResponse.match(/^\d+[\.)]\s/gm) || [];
           const containsMenuKeywords =
             /categorías disponibles|nuestro catálogo|menú/i.test(
               assistantResponse,
@@ -384,6 +384,36 @@ export class SalesService implements OnModuleInit {
           }
         } else {
           break;
+        }
+      }
+
+      // Auto-advance: RECOMMENDATION → LOGISTICS cuando la IA pregunta sobre logística
+      if (
+        conversation.conversationPhase === ConversationPhase.RECOMMENDATION &&
+        assistantResponse
+      ) {
+        const logisticsKeywords =
+          /envío|envio|recojo|pago|factura|facturación|NIT|nombre\s+completo|transferencia|QR|efectivo/i;
+        if (logisticsKeywords.test(assistantResponse)) {
+          this.logger.log(
+            `🔄 Auto-avanzando fase: RECOMMENDATION → LOGISTICS (IA preguntó sobre logística)`,
+          );
+          this.intentHandlers.updatePhaseAfterProductChosen(conversation);
+        }
+      }
+
+      // Auto-advance: LOGISTICS → ORDER_READY cuando la IA tiene toda la info
+      if (
+        conversation.conversationPhase === ConversationPhase.LOGISTICS &&
+        assistantResponse
+      ) {
+        const orderReadyKeywords =
+          /registra|genera|crea|confirmar.*orden|confirmar.*pedido|proceder.*pedido|proceder.*orden/i;
+        if (orderReadyKeywords.test(assistantResponse)) {
+          this.logger.log(
+            `🔄 Auto-avanzando fase: LOGISTICS → ORDER_READY`,
+          );
+          conversation.conversationPhase = ConversationPhase.ORDER_READY;
         }
       }
 
