@@ -18,8 +18,8 @@ export class Branch extends Document {
   @Prop({ default: true })
   isActive: boolean;
 
-  @Prop({ default: true })
-  allowsDelivery: boolean;
+  @Prop({ default: false })
+  deliveryOnly: boolean;
 
   @Prop({ default: false })
   isBusinessHoursEnabled: boolean;
