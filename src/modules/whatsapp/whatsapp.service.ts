@@ -130,9 +130,14 @@ export class WhatsappService implements OnModuleInit {
 
       if (phoneNumber && !pairingRequested && (connection === 'connecting' || qr)) {
         pairingRequested = true;
-        const code = await sock.requestPairingCode(phoneNumber);
-        this.whatsappGateway.emitPairingCode(tenantId, code);
-        this.whatsappGateway.emitConnectionStatus(tenantId, 'QR_READY');
+        try {
+          const code = await sock.requestPairingCode(phoneNumber);
+          this.whatsappGateway.emitPairingCode(tenantId, code);
+          this.whatsappGateway.emitConnectionStatus(tenantId, 'QR_READY');
+        } catch (err) {
+          console.error(`Error al solicitar pairing code para empresa ${tenantId}:`, err);
+          this.whatsappGateway.emitConnectionStatus(tenantId, 'DISCONNECTED');
+        }
         return;
       }
 
@@ -141,11 +146,11 @@ export class WhatsappService implements OnModuleInit {
           const shouldReconnect =
             (lastDisconnect?.error as any)?.output?.statusCode !==
             DisconnectReason.loggedOut;
-          console.log('Conexión cerrada. Reconectando:', shouldReconnect);
+          console.log('Conexión cerrada (pairing). Reconectando:', shouldReconnect);
           this.sockets.delete(tenantId);
           this.qrCodes.delete(tenantId);
           if (shouldReconnect) {
-            setTimeout(() => this.startSession(tenantId), 5000);
+            setTimeout(() => this.startSession(tenantId, phoneNumber), 5000);
           } else {
             this.authModel
               .deleteMany({ tenantId: new Types.ObjectId(tenantId) })
@@ -153,7 +158,7 @@ export class WhatsappService implements OnModuleInit {
             this.whatsappGateway.emitConnectionStatus(tenantId, 'DISCONNECTED');
           }
         } else if (connection === 'open') {
-          console.log(`¡Conexión de WhatsApp abierta y lista para empresa ${tenantId}!`);
+          console.log(`¡Conexión de WhatsApp abierta (pairing) para empresa ${tenantId}!`);
           this.sockets.set(tenantId, sock);
           this.qrCodes.delete(tenantId);
           this.whatsappGateway.emitConnectionStatus(tenantId, 'CONNECTED');
