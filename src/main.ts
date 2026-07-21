@@ -3,16 +3,19 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import * as express from 'express';
 import { AppModule } from './app.module';
+import { SocketIoAdapter } from './common/adapters/socket-io.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Habilitar CORS para el Frontend
   app.enableCors({
-    origin: true, // true refleja el origen dinámicamente y soluciona el conflicto con credentials: true
+    origin: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
+
+  app.useWebSocketAdapter(new SocketIoAdapter(app));
 
   // Aumentar el límite del payload (para imágenes base64)
   app.use(express.json({ limit: '10mb' }));
