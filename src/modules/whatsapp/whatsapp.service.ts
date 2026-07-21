@@ -117,7 +117,7 @@ export class WhatsappService implements OnModuleInit {
       printQRInTerminal: true,
       browser: Browsers.macOS('Desktop'),
       syncFullHistory: false,
-      logger: pino({ level: 'silent' }),
+      //logger: pino({ level: 'silent' }),
     });
 
     sock.ev.on('creds.update', saveCreds);
