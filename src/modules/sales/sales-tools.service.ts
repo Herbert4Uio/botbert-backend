@@ -243,6 +243,57 @@ export class SalesToolsService {
     return { regex: new RegExp(regexString, 'i'), rootWords };
   }
 
+  private stopWords = new Set([
+    'un', 'una', 'unas', 'unos', 'el', 'la', 'los', 'las', 'lo',
+    'para', 'con', 'de', 'en', 'por', 'al', 'del', 'que', 'es',
+    'se', 'su', 'le', 'ya', 'ni', 'no', 'si', 'me', 'te', 'se',
+    'le', 'lo', 'la', 'y', 'e', 'o', 'a', 'ante', 'bajo',
+    'cabe', 'como', 'contra', 'cual', 'cuando', 'da', 'da',
+    'desde', 'donde', 'durante', 'entre', 'era', 'eres',
+    'esta', 'este', 'esto', 'fin', 'fue', 'fuera', 'gran',
+    'has', 'han', 'haste', 'hay', 'haya', 'he', 'hubo',
+    'más', 'menos', 'mi', 'mio', 'muy', ' Sin', 'son',
+    'soy', 'su', 'sus', 'tal', 'tan', 'tanto', 'todo',
+    'tus', 'tu', 'tuyo', 'tras', 'una', 'uno', 'vos',
+    'vosotros', 'voy', 'zona', 'otro', 'otra', 'otros', 'otras',
+    'mismo', 'misma', 'mismos', 'mismas',
+    'quiero', 'busco', 'necesito', 'quisiera', 'dame',
+    'puedes', 'podrias', 'puede', 'tiene', 'tengo',
+    'hacer', 'hace', 'hacen', 'hagamos', 'seria',
+  ]);
+
+  private calculateJaccardSimilarity(query: string, productName: string): number {
+    const normalize = (text: string) =>
+      text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-záéíóúñ0-9\s]/g, '')
+        .trim();
+
+    const tokenize = (text: string): string[] =>
+      normalize(text)
+        .split(/\s+/)
+        .filter((w) => w.length > 1 && !this.stopWords.has(w));
+
+    const queryTokens = new Set(tokenize(query));
+    const nameTokens = new Set(tokenize(productName));
+
+    if (queryTokens.size === 0 || nameTokens.size === 0) {
+      return queryTokens.size === nameTokens.size ? 1 : 0;
+    }
+
+    let intersection = 0;
+    for (const token of queryTokens) {
+      if (nameTokens.has(token)) {
+        intersection++;
+      }
+    }
+
+    const union = new Set([...queryTokens, ...nameTokens]).size;
+    return intersection / union;
+  }
+
   async handleProductSearch(
     args: any,
     tenantObjectId: Types.ObjectId,
@@ -373,15 +424,32 @@ export class SalesToolsService {
           score += 5;
         }
 
-        return { ...p, score };
+        // Calcular similitud Jaccard entre query original y nombre del producto
+        const jaccard = this.calculateJaccardSimilarity(args.query, p.name);
+
+        return { ...p, score, jaccard };
       });
 
-      // Ordenar por puntuación de mayor a menor
-      validProducts.sort((a, b) => b.score - a.score);
+      // Filtrar por Jaccard: eliminar falsos positivos
+      const beforeFilter = validProducts.length;
+      validProducts = validProducts.filter((p) => p.jaccard >= 0.3);
+      const removedCount = beforeFilter - validProducts.length;
+      if (removedCount > 0) {
+        this.logger.warn(
+          `🧹 Jaccard eliminó ${removedCount} productos con similitud < 0.3 (falsos positivos)`,
+        );
+      }
+
+      // Ordenar por puntuación de mayor a menor (con Jaccard como desempate)
+      validProducts.sort((a, b) => {
+        const scoreDiff = b.score - a.score;
+        if (scoreDiff !== 0) return scoreDiff;
+        return b.jaccard - a.jaccard;
+      });
       this.logger.debug(
-        `🎯 Top 3 Relevantes tras Scoring: ${validProducts
+        `🎯 Top 3 Relevantes tras Scoring y Jaccard: ${validProducts
           .slice(0, 3)
-          .map((p) => `"${p.name}" (Score: ${p.score})`)
+          .map((p) => `"${p.name}" (Score: ${p.score}, Jaccard: ${p.jaccard.toFixed(2)})`)
           .join(', ')}`,
       );
     }
@@ -400,7 +468,10 @@ export class SalesToolsService {
       validProducts.forEach((p: any, index: number) => {
         const optionId = (index + 1).toString();
         const weightInfo = p.weight ? ` (Peso: ${p.weight})` : '';
-        const itemLine = `- [Opción: ${optionId}] ${p.name}${weightInfo}: $${p.matchedPrice}. ${p.description}`;
+        let itemLine = `- [Opción: ${optionId}] ${p.name}${weightInfo}: $${p.matchedPrice}. ${p.description}`;
+        if (p.jaccard !== undefined && p.jaccard < 0.5) {
+          itemLine += ` ⚠️ Coincidencia parcial con la búsqueda del cliente. Verifica antes de recomendar.`;
+        }
         this.logger.debug(`➡️ Enviado a IA: ${itemLine}`);
         resultText += itemLine + '\n';
       });
@@ -558,10 +629,12 @@ export class SalesToolsService {
 
         const existing = consolidatedItemsMap.get(actualMongoId);
         if (existing) {
-          existing.quantity += quantity;
-          existing.modifications = [
-            ...new Set([...existing.modifications, ...modifications]),
-          ];
+          this.logger.warn(
+            `⚠️ Producto duplicado detectado en generar_orden: "${productId}" aparece 2+ veces. Rechazando orden para prevenir duplicación.`,
+          );
+          isOrderValid = false;
+          validationErrorMsg = `El producto "${productId}" aparece duplicado en la orden. Por favor, corrige y vuelve a intentar.`;
+          break;
         } else {
           consolidatedItemsMap.set(actualMongoId, { quantity, modifications });
         }
@@ -595,6 +668,7 @@ export class SalesToolsService {
         }
 
         let productDb = null;
+        let foundByObjectId = false;
         try {
           if (Types.ObjectId.isValid(productId)) {
             productDb = await this.productModel
@@ -603,6 +677,7 @@ export class SalesToolsService {
                 _id: new Types.ObjectId(productId),
               })
               .populate('prices.cityId');
+            if (productDb) foundByObjectId = true;
           }
         } catch (e) {}
 
@@ -638,6 +713,19 @@ export class SalesToolsService {
         }
 
         if (productDb) {
+          // Validación Jaccard: si el producto fue encontrado por nombre (no por ObjectId),
+          // verificar que el nombre realmente coincida semánticamente
+          if (!foundByObjectId) {
+            const jaccard = this.calculateJaccardSimilarity(productId, productDb.name);
+            if (jaccard < 0.5) {
+              this.logger.warn(
+                `🧪 Jaccard bajo (${jaccard.toFixed(2)}) en generar_orden: IA envió "${productId}" → matcheó "${productDb.name}". Rechazando.`,
+              );
+              isOrderValid = false;
+              validationErrorMsg = `El producto que indicaste ("${productId}") no coincide exactamente con "${productDb.name}" de nuestro catálogo. Consulta con el cliente para confirmar el producto correcto.`;
+              break;
+            }
+          }
           let dbPrice = null;
           if (productDb.prices && productDb.prices.length > 0) {
             const priceObj = productDb.prices.find(
