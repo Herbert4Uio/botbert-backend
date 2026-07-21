@@ -123,39 +123,17 @@ export class WhatsappService implements OnModuleInit {
 
     sock.ev.on('creds.update', saveCreds);
 
-    let pairingTimedOut = false;
+    sock.ev.on('connection.update', async (update: any) => {
+      const { connection, lastDisconnect, qr } = update;
 
-    if (phoneNumber) {
-      setTimeout(() => {
-        if (!this.sockets.has(tenantId) && !pairingTimedOut) {
-          pairingTimedOut = true;
-          this.sockets.delete(tenantId);
-          this.qrCodes.delete(tenantId);
-          sock?.ws?.close();
-          console.log(
-            `Pairing timeout para empresa ${tenantId} — no se recibió código`,
-          );
-          this.whatsappGateway.emitConnectionStatus(tenantId, 'DISCONNECTED');
-        }
-      }, 45000);
-    }
-
-    sock.ev.on('connection.update', (update: any) => {
-      const { connection, lastDisconnect } = update;
-      const qr = update.qr as string | undefined;
-      const pairingCode = update.pairingCode as string | undefined;
-
-      if (phoneNumber) {
-        if (pairingCode && !pairingTimedOut) {
-          this.qrCodes.delete(tenantId);
-          this.whatsappGateway.emitPairingCode(tenantId, pairingCode);
-          this.whatsappGateway.emitConnectionStatus(tenantId, 'QR_READY');
-          return;
-        }
+      if (phoneNumber && (connection === 'connecting' || qr)) {
+        const code = await sock.requestPairingCode(phoneNumber);
+        this.whatsappGateway.emitPairingCode(tenantId, code);
+        this.whatsappGateway.emitConnectionStatus(tenantId, 'QR_READY');
         return;
       }
 
-      if (qr) {
+      if (qr && !phoneNumber) {
         this.qrCodes.set(tenantId, qr);
         this.whatsappGateway.emitQrCode(tenantId, qr);
         this.whatsappGateway.emitConnectionStatus(tenantId, 'QR_READY');
