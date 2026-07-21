@@ -605,9 +605,7 @@ export class SalesService implements OnModuleInit {
     }
     await conversation.save();
   }
-
-  // --- Admin API Methods ---
-
+  
   async clearHistory(tenantId: string) {
     const result = await this.conversationModel.deleteMany({
       tenantId: new Types.ObjectId(tenantId),
