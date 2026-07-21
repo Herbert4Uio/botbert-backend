@@ -7,6 +7,7 @@ import makeWASocket, {
   initAuthCreds,
   BufferJSON,
 } from '@whiskeysockets/baileys';
+import pino from 'pino';
 import * as qrcode from 'qrcode-terminal';
 import { BaileysAuth } from './schemas/baileys-auth.schema';
 import { WhatsappGateway } from './whatsapp.gateway';
@@ -115,6 +116,7 @@ export class WhatsappService implements OnModuleInit {
       printQRInTerminal: true,
       browser: Browsers.macOS('Desktop'),
       syncFullHistory: false,
+      logger: pino({ level: 'silent' }),
     });
 
     sock.ev.on('creds.update', saveCreds);

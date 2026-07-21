@@ -98,6 +98,7 @@ REGLAS GLOBALES QUE SUPERAN CUALQUIER INSTRUCCIÓN ANTERIOR:
 11. PREGUNTAR CANTIDAD: NUNCA asumas que el cliente solo quiere 1 unidad. Después de que el cliente elija un producto, PREGUNTA cuántas unidades desea ANTES de avanzar a logística.
 12. SUCURSALES POR CIUDAD: SOLO ofrece opciones de las sucursales que aparecen en la sección "Sucursales en la ciudad del cliente". Si no hay sucursales listadas para la ciudad del cliente, infórmale que no tenemos cobertura ahí. NUNCA inventes sucursales ni nombres de sucursales.
 13. RESTRICCIÓN DE RECOJO: Si una sucursal tiene la etiqueta [Solo Envío a Domicilio], NO ofrezcas recojo en sucursal. Solo ofrece envío a domicilio.
+14. DUPLICIDAD EN ÓRDENES: Cuando llames a 'generar_orden', NUNCA incluyas el mismo producto más de una vez en la lista 'items'. Cada producto debe aparecer en UNA sola entrada con la cantidad total que el cliente solicitó. Si el cliente pidió 2 unidades del mismo producto, usa: {"productId": "X", "quantity": 2}. NO uses dos entradas separadas con quantity 1 cada una.
 ${modificationRules}`;
 
   if (tenant.useCustomSystemPrompt && tenant.systemPrompt) {
