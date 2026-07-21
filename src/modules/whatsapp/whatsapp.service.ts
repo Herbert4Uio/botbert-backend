@@ -101,13 +101,14 @@ export class WhatsappService implements OnModuleInit {
     this.whatsappGateway.emitConnectionStatus(tenantId, 'DISCONNECTED');
   }
 
-  public async startSession(tenantId: string) {
-    // Si ya existe un socket conectado, retornarlo
+  public async startSession(tenantId: string, phoneNumber?: string) {
     if (this.sockets.has(tenantId)) {
       return this.sockets.get(tenantId);
     }
 
-    console.log(`Iniciando sesión de WhatsApp para la empresa: ${tenantId}`);
+    console.log(
+      `Iniciando sesión de WhatsApp para la empresa: ${tenantId}${phoneNumber ? ` (Pairing: ${phoneNumber})` : ' (QR)'}`,
+    );
 
     const { state, saveCreds } = await this.useMongoDBAuthState(tenantId);
 
@@ -117,12 +118,21 @@ export class WhatsappService implements OnModuleInit {
       browser: Browsers.macOS('Desktop'),
       syncFullHistory: false,
       logger: pino({ level: 'silent' }),
+      ...(phoneNumber ? { pairingNumber: phoneNumber } : {}),
     });
 
     sock.ev.on('creds.update', saveCreds);
 
-    sock.ev.on('connection.update', (update) => {
+    sock.ev.on('connection.update', (update: any) => {
       const { connection, lastDisconnect, qr } = update;
+      const pairingCode = update.pairingCode as string | undefined;
+
+      if (phoneNumber && pairingCode) {
+        this.qrCodes.delete(tenantId);
+        this.whatsappGateway.emitPairingCode(tenantId, pairingCode);
+        this.whatsappGateway.emitConnectionStatus(tenantId, 'QR_READY');
+        return;
+      }
 
       if (qr) {
         this.qrCodes.set(tenantId, qr);
@@ -162,7 +172,6 @@ export class WhatsappService implements OnModuleInit {
           if (!msg.key.fromMe && msg.message) {
             const jid = msg.key.remoteJid;
             if (jid && !jid.includes('@g.us')) {
-              // Ignorar grupos
               this.onMessageCallback(tenantId, msg, jid);
             }
           }

@@ -36,6 +36,10 @@ export class WhatsappGateway
     this.server.to(tenantId).emit('qr', { qr });
   }
 
+  emitPairingCode(tenantId: string, code: string) {
+    this.server.to(tenantId).emit('pairingCode', { code });
+  }
+
   emitConnectionStatus(
     tenantId: string,
     status: 'CONNECTED' | 'DISCONNECTED' | 'QR_READY',
