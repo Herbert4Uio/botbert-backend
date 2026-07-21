@@ -118,28 +118,24 @@ export class WhatsappService implements OnModuleInit {
       browser: Browsers.macOS('Desktop'),
       syncFullHistory: false,
       logger: pino({ level: 'silent' }),
-      ...(phoneNumber ? { pairingNumber: phoneNumber } : {}),
     });
 
     sock.ev.on('creds.update', saveCreds);
 
-    let pairingRequested = false;
+    if (phoneNumber) {
+      sock.requestPairingCode(phoneNumber)
+        .then((code) => {
+          this.whatsappGateway.emitPairingCode(tenantId, code);
+          this.whatsappGateway.emitConnectionStatus(tenantId, 'QR_READY');
+        })
+        .catch((err) => {
+          console.error(`Error al solicitar pairing code para empresa ${tenantId}:`, err);
+          this.whatsappGateway.emitConnectionStatus(tenantId, 'DISCONNECTED');
+        });
+    }
 
     sock.ev.on('connection.update', async (update: any) => {
       const { connection, lastDisconnect, qr } = update;
-
-      if (phoneNumber && !pairingRequested && (connection === 'connecting' || qr)) {
-        pairingRequested = true;
-        try {
-          const code = await sock.requestPairingCode(phoneNumber);
-          this.whatsappGateway.emitPairingCode(tenantId, code);
-          this.whatsappGateway.emitConnectionStatus(tenantId, 'QR_READY');
-        } catch (err) {
-          console.error(`Error al solicitar pairing code para empresa ${tenantId}:`, err);
-          this.whatsappGateway.emitConnectionStatus(tenantId, 'DISCONNECTED');
-        }
-        return;
-      }
 
       if (phoneNumber) {
         if (connection === 'close') {
