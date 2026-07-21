@@ -123,17 +123,45 @@ export class WhatsappService implements OnModuleInit {
 
     sock.ev.on('creds.update', saveCreds);
 
+    let pairingRequested = false;
+
     sock.ev.on('connection.update', async (update: any) => {
       const { connection, lastDisconnect, qr } = update;
 
-      if (phoneNumber && (connection === 'connecting' || qr)) {
+      if (phoneNumber && !pairingRequested && (connection === 'connecting' || qr)) {
+        pairingRequested = true;
         const code = await sock.requestPairingCode(phoneNumber);
         this.whatsappGateway.emitPairingCode(tenantId, code);
         this.whatsappGateway.emitConnectionStatus(tenantId, 'QR_READY');
         return;
       }
 
-      if (qr && !phoneNumber) {
+      if (phoneNumber) {
+        if (connection === 'close') {
+          const shouldReconnect =
+            (lastDisconnect?.error as any)?.output?.statusCode !==
+            DisconnectReason.loggedOut;
+          console.log('Conexión cerrada. Reconectando:', shouldReconnect);
+          this.sockets.delete(tenantId);
+          this.qrCodes.delete(tenantId);
+          if (shouldReconnect) {
+            setTimeout(() => this.startSession(tenantId), 5000);
+          } else {
+            this.authModel
+              .deleteMany({ tenantId: new Types.ObjectId(tenantId) })
+              .exec();
+            this.whatsappGateway.emitConnectionStatus(tenantId, 'DISCONNECTED');
+          }
+        } else if (connection === 'open') {
+          console.log(`¡Conexión de WhatsApp abierta y lista para empresa ${tenantId}!`);
+          this.sockets.set(tenantId, sock);
+          this.qrCodes.delete(tenantId);
+          this.whatsappGateway.emitConnectionStatus(tenantId, 'CONNECTED');
+        }
+        return;
+      }
+
+      if (qr) {
         this.qrCodes.set(tenantId, qr);
         this.whatsappGateway.emitQrCode(tenantId, qr);
         this.whatsappGateway.emitConnectionStatus(tenantId, 'QR_READY');
