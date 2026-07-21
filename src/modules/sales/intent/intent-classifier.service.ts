@@ -24,7 +24,7 @@ export class IntentClassifier {
     cochabamba: ['cochabamba', 'cbba', 'cbb', 'cb'],
     'la paz': ['la paz', 'lp', 'elpaz'],
     'santa cruz': ['santa cruz', 'scz', 'sc', 'santacruz'],
-    sucre: ['sucre', 'suc'],
+    sucre: ['sucre', 'suc', 'chuquisaca'],
     potosí: ['potosi', 'potosí', 'pot'],
     oruro: ['oruro'],
     tarija: ['tarija', 'tja'],
