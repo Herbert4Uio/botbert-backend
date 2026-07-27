@@ -621,6 +621,15 @@ export class SalesService implements OnModuleInit {
     return { success: true, message: 'Historial de ventas borrado' };
   }
 
+  async resetAiMemory(tenantId: string) {
+    const result = await this.conversationModel.updateMany(
+      { tenantId: new Types.ObjectId(tenantId), status: 'ACTIVE' },
+      { $set: { status: 'CLOSED' } }
+    );
+    this.logger.log(`Memoria de IA reiniciada para tenant ${tenantId}. ${result.modifiedCount} chats cerrados.`);
+    return { success: true, message: 'Memoria de la IA reiniciada correctamente', count: result.modifiedCount };
+  }
+
   async getConversations(tenantId: string) {
     return this.conversationModel
       .find({ tenantId: new Types.ObjectId(tenantId) })

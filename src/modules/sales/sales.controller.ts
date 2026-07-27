@@ -25,6 +25,12 @@ export class SalesController {
     return this.salesService.clearHistory(tenantId);
   }
 
+  @Post('reset-memory')
+  @Roles('OWNER', 'ADMIN')
+  async resetAiMemory(@TenantId() tenantId: string) {
+    return this.salesService.resetAiMemory(tenantId);
+  }
+
   @Get('conversations')
   @Roles('OWNER', 'ADMIN', 'VIEWER')
   async getConversations(@TenantId() tenantId: string) {
