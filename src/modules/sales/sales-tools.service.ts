@@ -582,7 +582,8 @@ export class SalesToolsService {
         'Falta la ciudad del cliente. Por favor, pregúntale de qué ciudad es antes de generar la orden.';
     } else if (
       args.deliveryType === 'ENVIO' &&
-      (!args.shippingAddress || args.shippingAddress.trim() === '')
+      (!args.shippingAddress || args.shippingAddress.trim() === '') &&
+      !(args.eventDetails && Object.keys(args.eventDetails).length > 0)
     ) {
       isOrderValid = false;
       validationErrorMsg =
