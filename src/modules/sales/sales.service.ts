@@ -1,5 +1,6 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { buildSalesPrompt } from './prompts/sales.prompt';
+import { PromptResolverService } from './prompts/prompt-resolver.service';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
@@ -15,6 +16,9 @@ import { Category } from '../catalog/schemas/category.schema';
 import { IntentClassifier } from './intent/intent-classifier.service';
 import { IntentHandlers } from './intent/intent-handlers.service';
 import { Intent, ConversationPhase } from './intent/intent.types';
+import { VerticalConfigService } from '../vertical/vertical-config.service';
+import { ContentValidatorService } from './content-validator.service';
+import { PlaybookService } from './playbook/playbook.service';
 
 @Injectable()
 export class SalesService implements OnModuleInit {
@@ -26,6 +30,10 @@ export class SalesService implements OnModuleInit {
     private readonly salesToolsService: SalesToolsService,
     private readonly intentClassifier: IntentClassifier,
     private readonly intentHandlers: IntentHandlers,
+    private readonly verticalConfigService: VerticalConfigService,
+    private readonly promptResolverService: PromptResolverService,
+    private readonly contentValidatorService: ContentValidatorService,
+    private readonly playbookService: PlaybookService,
     @InjectModel(Conversation.name)
     private conversationModel: Model<Conversation>,
     @InjectModel(Tenant.name) private tenantModel: Model<Tenant>,
@@ -90,6 +98,21 @@ export class SalesService implements OnModuleInit {
         .find({ tenantId: tenantObjectId, isActive: true })
         .populate('cityId');
 
+      let verticalConfig = null;
+      if (tenant.verticalConfigId) {
+        verticalConfig = await this.verticalConfigService.findById(
+          tenant.verticalConfigId.toString(),
+        );
+      }
+
+      // Cargar playbook activo del tenant
+      let activePlaybook: any = null;
+      try {
+        activePlaybook = await this.playbookService.findActiveForTenant(tenantId);
+      } catch {
+        this.logger.debug('No se encontró playbook activo, usando default');
+      }
+
       const jidAlt = msg.key.remoteJidAlt || msg.participant || null;
       let phoneNumber = '';
       if (jidAlt && jidAlt.includes('@s.whatsapp.net')) {
@@ -127,6 +150,17 @@ export class SalesService implements OnModuleInit {
         return;
       }
 
+      // Tracking de turnos por fase (para playbooks)
+      const previousPhase = conversation.conversationPhase;
+      if (!conversation.contextSummary) conversation.contextSummary = {};
+      if (conversation.contextSummary.lastPhase !== previousPhase) {
+        conversation.contextSummary.lastPhase = previousPhase;
+        conversation.contextSummary.phaseTurnCount = 1;
+      } else {
+        conversation.contextSummary.phaseTurnCount =
+          (conversation.contextSummary.phaseTurnCount || 0) + 1;
+      }
+
       // FASE 1: Intent Router - Clasificar intención ANTES de llamar a IA
       const classification = this.intentClassifier.classify(
         textContent,
@@ -137,7 +171,7 @@ export class SalesService implements OnModuleInit {
 
       // Manejar intenciones que NO requieren IA
       if (classification.intent === Intent.HANDOFF) {
-        const response = this.intentHandlers.handleHandoff(conversation);
+        const response = this.intentHandlers.handleHandoff(conversation, activePlaybook);
         await this.sendAssistantResponse(tenantId, jid, conversation, response);
         return;
       }
@@ -191,21 +225,28 @@ export class SalesService implements OnModuleInit {
 
       // FASE 2: Verificar si debemos omitir IA y enviar respuesta automática
       const currentPhase = conversation.conversationPhase || 'DISCOVERY';
+      const phaseTurnCount = conversation.contextSummary?.phaseTurnCount || 0;
       const phaseInstructions = this.intentHandlers.getPhaseInstructions(
         currentPhase,
         tenant,
+        activePlaybook,
+        phaseTurnCount,
       );
 
       if (
         this.intentHandlers.shouldSkipAI(
           currentPhase,
           conversation.contextSummary,
+          activePlaybook,
+          phaseTurnCount,
         )
       ) {
         const autoResponse = this.intentHandlers.getAutoResponse(
           currentPhase,
           conversation.contextSummary,
           tenant,
+          activePlaybook,
+          phaseTurnCount,
         );
         if (autoResponse) {
           this.logger.log(
@@ -246,10 +287,16 @@ export class SalesService implements OnModuleInit {
 
       const fullSystemPrompt = buildSalesPrompt(
         tenant,
+        verticalConfig,
         branches,
         conversation,
         selectedSuggestions,
         phaseInstructions,
+      );
+      const resolvedPrompt = this.promptResolverService.resolve(
+        fullSystemPrompt,
+        verticalConfig,
+        tenant,
       );
       const tools = this.salesToolsService.getAiTools(tenant);
 
@@ -262,7 +309,7 @@ export class SalesService implements OnModuleInit {
       );
 
       const messages: any[] = [
-        { role: 'system', content: fullSystemPrompt },
+        { role: 'system', content: resolvedPrompt },
         ...recentMessages.map((m) => ({ role: m.role, content: m.content })),
       ];
 
@@ -330,6 +377,29 @@ export class SalesService implements OnModuleInit {
             this.logger.log(
               `🛠️ IA invocó la herramienta: ${toolCall.function.name}`,
             );
+
+            // Verificar si la herramienta está bloqueada por el playbook
+            if (
+              activePlaybook &&
+              this.intentHandlers.isToolBlocked(
+                conversation.conversationPhase,
+                toolCall.function.name,
+                activePlaybook,
+                conversation.contextSummary?.phaseTurnCount || 0,
+              )
+            ) {
+              this.logger.warn(
+                `🚫 Herramienta bloqueada por playbook: ${toolCall.function.name} en fase ${conversation.conversationPhase}`,
+              );
+              messages.push({
+                role: 'tool',
+                tool_call_id: toolCall.id,
+                content: JSON.stringify({
+                  error: 'Herramienta no disponible en esta fase de la conversación',
+                }),
+              });
+              continue;
+            }
 
             if (toolCall.function.name === 'buscar_productos') {
               const resultText =
@@ -414,6 +484,36 @@ export class SalesService implements OnModuleInit {
             `🔄 Auto-avanzando fase: LOGISTICS → ORDER_READY`,
           );
           conversation.conversationPhase = ConversationPhase.ORDER_READY;
+        }
+      }
+
+      // FASE 3: Guardrails post-generación — Validar respuesta contra políticas del vertical
+      if (assistantResponse && verticalConfig) {
+        const productNames = conversation.contextSummary?.keywords || [];
+        const validation = this.contentValidatorService.validate(
+          assistantResponse,
+          verticalConfig,
+          {
+            productNames,
+            currentPhase: conversation.conversationPhase,
+          },
+        );
+
+        if (!validation.isValid) {
+          this.logger.warn(
+            `🛑 Guardrails: Respuesta rechazada [${validation.action}]. Violaciones: ${validation.violations.map((v) => v.message).join('; ')}`,
+          );
+          assistantResponse = verticalConfig.fallbackMessage ||
+            'Disculpa, hubo un problema con mi respuesta. ¿Podrías repetir tu consulta para darte una mejor atención?';
+        } else if (validation.sanitizedResponse !== assistantResponse) {
+          this.logger.log(
+            `✅ Guardrails: Respuesta sanitizada [${validation.action}] | Reglas aplicadas: ${validation.appliedRules.join(', ')}`,
+          );
+          assistantResponse = validation.sanitizedResponse;
+        } else if (validation.action === 'warn' && validation.violations.length > 0) {
+          this.logger.log(
+            `⚠️ Guardrails: Advertencias registradas [${validation.appliedRules.join(', ')}] pero respuesta permitida`,
+          );
         }
       }
 

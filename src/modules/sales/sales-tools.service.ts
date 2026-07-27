@@ -5,6 +5,8 @@ import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { Product } from '../catalog/schemas/product.schema';
 import { Order } from '../order/schemas/order.schema';
 import { Category } from '../catalog/schemas/category.schema';
+import { SynonymService } from '../catalog/synonym.service';
+import { TextNormalizer } from '../../common/utils/text-normalizer';
 
 @Injectable()
 export class SalesToolsService {
@@ -12,6 +14,7 @@ export class SalesToolsService {
 
   constructor(
     private readonly whatsappService: WhatsappService,
+    private readonly synonymService: SynonymService,
     @InjectModel(Product.name) private productModel: Model<Product>,
     @InjectModel(Category.name) private categoryModel: Model<Category>,
     @InjectModel(Order.name) private orderModel: Model<Order>,
@@ -47,6 +50,17 @@ export class SalesToolsService {
                 type: 'string',
                 description:
                   "La ciudad que el cliente mencionó (ej. 'Cochabamba'). OBLIGATORIO para buscar precios correctos.",
+              },
+              attributeFilters: {
+                type: 'object',
+                description:
+                  'Filtros por atributos dinámicos del producto. Ej: {"talle": "M", "color": "rojo"}. SOLO usar si el cliente proporcionó atributos específicos.',
+                additionalProperties: true,
+              },
+              categoryId: {
+                type: 'string',
+                description:
+                  'ID de categoría para filtrar resultados. Opcional, usar si se sabe la categoría exacta.',
               },
             },
             required: ['customerCity'],
@@ -181,66 +195,7 @@ export class SalesToolsService {
     regex: RegExp;
     rootWords: string[];
   } {
-    const normalizedQuery = query
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-    const stopWords = [
-      'un',
-      'una',
-      'el',
-      'la',
-      'los',
-      'las',
-      'para',
-      'con',
-      'de',
-      'en',
-      'quiero',
-      'busco',
-      'necesito',
-      'algún',
-      'algun',
-      'cual',
-      'que',
-    ];
-
-    const words = normalizedQuery
-      .split(/\s+/)
-      .map((w) => w.toLowerCase())
-      .filter((w) => w.length > 2 && !stopWords.includes(w));
-
-    if (words.length === 0)
-      return { regex: new RegExp(normalizedQuery, 'i'), rootWords: [] };
-
-    const rootWords = words.map((w) => {
-      let root = w;
-      if (root.endsWith('es') && root.length > 4) {
-        root = root.slice(0, -2);
-      } else if (root.endsWith('s') && root.length > 3) {
-        root = root.slice(0, -1);
-      }
-      return root;
-    });
-
-    const vowelMap: Record<string, string> = {
-      a: '[aáAÁ]',
-      e: '[eéEÉ]',
-      i: '[iíIÍ]',
-      o: '[oóOÓ]',
-      u: '[uúüUÚÜ]',
-    };
-
-    const accentAgnosticRoots = rootWords.map((root) => {
-      const replaced = root
-        .split('')
-        .map((char) => vowelMap[char] || char)
-        .join('');
-      return replaced + '(es|s)?';
-    });
-
-    const regexString = accentAgnosticRoots.join('|');
-    this.logger.debug(`🧠 Regex generado para búsqueda: /${regexString}/i`);
-    return { regex: new RegExp(regexString, 'i'), rootWords };
+    return TextNormalizer.buildSearchRegex(query);
   }
 
   private stopWords = new Set([
@@ -311,8 +266,18 @@ export class SalesToolsService {
 
     if (args.query && args.query.trim() !== '') {
       this.logger.debug(`📝 Procesando query del usuario: "${args.query}"`);
-      const { regex: flexibleRegex, rootWords } = this.buildFlexibleRegex(
+      const normalizedQuery = await this.synonymService.normalizeQuery(
         args.query,
+        tenantObjectId.toString(),
+        args.categoryId,
+      );
+      if (normalizedQuery !== args.query) {
+        this.logger.log(
+          `🔄 Query normalizado por sinónimos: "${args.query}" → "${normalizedQuery}"`,
+        );
+      }
+      const { regex: flexibleRegex, rootWords } = this.buildFlexibleRegex(
+        normalizedQuery,
       );
       queryRootWords = rootWords;
 
@@ -401,6 +366,44 @@ export class SalesToolsService {
       } else {
         this.logger.debug(
           `❌ Producto "${p.name}" descartado porque no tiene precio registrado para la ciudad "${args.customerCity}".`,
+        );
+      }
+    }
+
+    // Filtrar por atributos dinámicos si se proporcionaron
+    if (args.attributeFilters && Object.keys(args.attributeFilters).length > 0) {
+      const beforeAttrFilter = validProducts.length;
+      validProducts = validProducts.filter((p) => {
+        const rawAttrs = p.attributes || {};
+        const attrs = rawAttrs instanceof Map ? Object.fromEntries(rawAttrs) : rawAttrs;
+        return Object.entries(args.attributeFilters).every(([attrName, attrValue]) => {
+          if (attrValue === null || attrValue === undefined || attrValue === '') return true;
+          const productAttrValue = attrs[attrName];
+          if (productAttrValue === undefined || productAttrValue === null) return false;
+          if (typeof attrValue === 'string' || typeof attrValue === 'number') {
+            return String(productAttrValue).toLowerCase() === String(attrValue).toLowerCase();
+          }
+          return true;
+        });
+      });
+      const attrRemoved = beforeAttrFilter - validProducts.length;
+      if (attrRemoved > 0) {
+        this.logger.warn(
+          `🏷️ Filtro por atributos eliminó ${attrRemoved} productos que no coinciden con los atributos solicitados`,
+        );
+      }
+    }
+
+    // Filtrar por categoría si se proporcionó categoryId
+    if (args.categoryId) {
+      const beforeCatFilter = validProducts.length;
+      validProducts = validProducts.filter(
+        (p) => p.categoryId && p.categoryId.toString() === args.categoryId,
+      );
+      const catRemoved = beforeCatFilter - validProducts.length;
+      if (catRemoved > 0) {
+        this.logger.warn(
+          `🏷️ Filtro por categoría eliminó ${catRemoved} productos de otras categorías`,
         );
       }
     }

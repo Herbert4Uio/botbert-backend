@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class Tenant extends Document {
@@ -14,6 +14,9 @@ export class Tenant extends Document {
 
   @Prop({ required: false })
   whatsappNumber?: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'VerticalConfig', required: false })
+  verticalConfigId?: Types.ObjectId;
 
   @Prop({
     default:

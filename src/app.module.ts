@@ -14,6 +14,8 @@ import { AiModule } from './modules/ai/ai.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { SalesModule } from './modules/sales/sales.module';
 import { CityModule } from './modules/city/city.module';
+import { VerticalModule } from './modules/vertical/vertical.module';
+import { CommonModule } from './common/common.module';
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { CityModule } from './modules/city/city.module';
     AuthModule,
     SalesModule,
     CityModule,
+    VerticalModule,
+    CommonModule,
   ],
   controllers: [AppController],
   providers: [AppService],

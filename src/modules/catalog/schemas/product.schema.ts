@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Types, Schema as MongooseSchema } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class Product extends Document {
@@ -38,6 +38,9 @@ export class Product extends Document {
 
   @Prop({ default: true })
   isActive: boolean;
+
+  @Prop({ type: Map, of: MongooseSchema.Types.Mixed, default: {} })
+  attributes: Map<string, any>;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);
