@@ -17,6 +17,9 @@ class OrderItem {
 
   @Prop({ type: [String], default: [] })
   modifications: string[];
+
+  @Prop({ type: [String], default: [] })
+  scheduledDates?: string[];
 }
 
 @Schema({ timestamps: true })
@@ -62,6 +65,16 @@ export class Order extends Document {
 
   @Prop()
   shippingAddress: string;
+
+  @Prop({ type: Object, required: false })
+  eventDetails?: {
+    eventName: string;
+    eventDate: string;
+    eventTime: string;
+    numberOfPeople: number;
+    serviceType: string;
+    dietaryRestrictions: string;
+  };
 
   @Prop({
     enum: [

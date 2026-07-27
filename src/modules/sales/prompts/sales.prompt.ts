@@ -7,6 +7,11 @@ export function buildSalesPrompt(
 ): string {
   const customerCity = conversation.contextSummary?.city || '';
   
+  // Calcular hora local (Bolivia)
+  const now = new Date();
+  const fechaActual = now.toLocaleDateString('es-BO', { timeZone: 'America/La_Paz' });
+  const horaActual = now.toLocaleTimeString('es-BO', { timeZone: 'America/La_Paz', hour: '2-digit', minute: '2-digit', hour12: true });
+
   // Filtrar sucursales por ciudad del cliente (solo si ya conocemos la ciudad)
   const relevantBranches = customerCity
     ? branches.filter((b) => b.cityId?.name?.toLowerCase() === customerCity.toLowerCase())
@@ -62,7 +67,8 @@ ${structuredContext}
 [RESUMEN GENERADO POR EL ASISTENTE]
 ${summaryText}
 
-FECHA ACTUAL: ${new Date().toISOString().split('T')[0]}
+FECHA ACTUAL: ${fechaActual}
+HORA ACTUAL: ${horaActual} (Hora Local)
 
 ⚠️ REGLA CRÍTICA SOBRE SUCURSALES: SOLO puedes ofrecer opciones de las sucursales listadas arriba que estén en la ciudad del cliente. NUNCA ofrezcas sucursales de otra ciudad. Si no hay sucursales en la ciudad del cliente, infórmale que no tenemos cobertura en esa zona.
 `;

@@ -117,6 +117,19 @@ export class SalesToolsService {
                 description:
                   "NIT o documento del cliente (o 'S/N' si no proporcionó).",
               },
+              eventDetails: {
+                type: 'object',
+                description:
+                  'Obligatorio SOLO si el cliente está contratando un Servicio de Catering o Evento. Deja vacío si es una compra normal.',
+                properties: {
+                  eventName: { type: 'string', description: 'Nombre o tipo de evento' },
+                  eventDate: { type: 'string', description: 'Fecha del evento YYYY-MM-DD' },
+                  eventTime: { type: 'string', description: 'Hora del evento' },
+                  numberOfPeople: { type: 'number', description: 'Número de invitados' },
+                  serviceType: { type: 'string', description: 'Tipo de servicio requerido' },
+                  dietaryRestrictions: { type: 'string', description: 'Restricciones alimentarias' },
+                },
+              },
               items: {
                 type: 'array',
                 items: {
@@ -136,6 +149,11 @@ export class SalesToolsService {
                       items: { type: 'string' },
                       description:
                         "Lista de notas o modificaciones que el cliente solicitó para este producto específico (ej. ['sin carne', 'soy celíaco']). Si el cliente no pidió nada, usa un array vacío [].",
+                    },
+                    scheduledDates: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      description: 'Obligatorio SOLO si el producto es un Plan de Alimentación con días de consumo específicos. Lista de fechas elegidas.',
                     },
                   },
                   required: ['productId', 'quantity'],
@@ -602,6 +620,7 @@ export class SalesToolsService {
         let productId = item.productId;
         const quantity = item.quantity;
         const modifications: string[] = item.modifications || [];
+        const scheduledDates: string[] = item.scheduledDates || [];
 
         if (
           !productId ||
@@ -636,7 +655,7 @@ export class SalesToolsService {
           validationErrorMsg = `El producto "${productId}" aparece duplicado en la orden. Por favor, corrige y vuelve a intentar.`;
           break;
         } else {
-          consolidatedItemsMap.set(actualMongoId, { quantity, modifications });
+          consolidatedItemsMap.set(actualMongoId, { quantity, modifications, scheduledDates } as any);
         }
       }
     }
@@ -742,6 +761,7 @@ export class SalesToolsService {
               quantity: quantity,
               price: dbPrice,
               modifications,
+              scheduledDates: (itemData as any).scheduledDates,
             });
             totalAmount += quantity * dbPrice;
           } else {
@@ -776,6 +796,7 @@ export class SalesToolsService {
         shippingDate: args.shippingDate,
         shippingTimeRange: args.shippingTimeRange,
         shippingAddress: args.shippingAddress,
+        eventDetails: args.eventDetails,
         status: 'PENDING',
         isAiGenerated: true,
       });
