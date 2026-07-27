@@ -59,8 +59,16 @@ export class SalesService implements OnModuleInit {
   }
 
   async handleIncomingMessage(tenantId: string, msg: any, jid: string) {
-    const textContent =
+    let textContent =
       msg.message?.conversation || msg.message?.extendedTextMessage?.text;
+
+    // Soporte para ubicación enviada por WhatsApp
+    if (!textContent && msg.message?.locationMessage) {
+      const loc = msg.message.locationMessage;
+      const addr = loc.address ? ` - Dirección: ${loc.address}` : '';
+      textContent = `[El cliente ha compartido una ubicación GPS por WhatsApp (Lat: ${loc.degreesLatitude}, Lng: ${loc.degreesLongitude})${addr}. Asume que esta es su dirección de entrega.]`;
+    }
+
     if (!textContent) return;
 
     const messageId = msg.key?.id || 'unknown';
