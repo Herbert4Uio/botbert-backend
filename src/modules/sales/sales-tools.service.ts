@@ -594,7 +594,7 @@ export class SalesToolsService {
       isOrderValid = false;
       validationErrorMsg =
         'El cliente eligió RECOJO, pero falta especificar el ID de la sucursal. Ofrécele las opciones antes de generar la orden.';
-    } else if (!args.items || args.items.length === 0) {
+    } else if ((!args.items || args.items.length === 0) && !(args.eventDetails && Object.keys(args.eventDetails).length > 0)) {
       isOrderValid = false;
       validationErrorMsg = 'El carrito de compras está vacío.';
     } else if (
@@ -777,7 +777,9 @@ export class SalesToolsService {
       }
     }
 
-    if (isOrderValid && orderItems.length > 0) {
+    const isCatering = args.eventDetails && Object.keys(args.eventDetails).length > 0;
+
+    if (isOrderValid && (orderItems.length > 0 || isCatering)) {
       this.logger.log(
         `📦 Creando orden en BD con ${orderItems.length} items y total $${totalAmount} (Validada en DB)`,
       );
