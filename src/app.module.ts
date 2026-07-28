@@ -14,6 +14,7 @@ import { AiModule } from './modules/ai/ai.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { SalesModule } from './modules/sales/sales.module';
 import { CityModule } from './modules/city/city.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { CityModule } from './modules/city/city.module';
     AuthModule,
     SalesModule,
     CityModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
