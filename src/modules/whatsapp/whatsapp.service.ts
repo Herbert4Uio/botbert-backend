@@ -112,8 +112,9 @@ export class WhatsappService implements OnModuleInit {
 
     const sock = makeWASocket({
       auth: state,
+      version: [2, 3000, 1015901307],
       browser: Browsers.ubuntu('Desktop'),
-      syncFullHistory: false,
+      markOnlineOnConnect: false,
       logger: pino({ level: 'info' }),
     });
 
