@@ -137,7 +137,7 @@ export class WhatsappService implements OnModuleInit {
           message: error?.message,
           statusCode,
         });
-        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+        const shouldReconnect = statusCode !== DisconnectReason.loggedOut && statusCode !== 405;
         this.sockets.delete(tenantId);
         this.qrCodes.delete(tenantId);
 
@@ -145,7 +145,7 @@ export class WhatsappService implements OnModuleInit {
           console.log(`Reconectando sesión QR ${tenantId} en 5s...`);
           setTimeout(() => this.startSession(tenantId), 5000);
         } else {
-          console.log(`Sesión QR ${tenantId} finalizada. Limpiando auth...`);
+          console.log(`Sesión QR ${tenantId} finalizada por error fatal (${statusCode}). Limpiando auth...`);
           this.authModel
             .deleteMany({ tenantId: new Types.ObjectId(tenantId) })
             .exec();
