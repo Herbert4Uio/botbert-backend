@@ -376,12 +376,21 @@ export class SalesService implements OnModuleInit {
                 conversation,
                 jid,
               );
-              assistantResponse = result.message;
+              
               if (result.success) {
+                assistantResponse = result.message;
                 this.intentHandlers.updatePhaseAfterOrder(conversation);
+                orderGenerated = true;
+                break;
+              } else {
+                // Devolver el error técnico a la IA para que pueda razonarlo
+                messages.push({
+                  role: 'tool',
+                  tool_call_id: toolCall.id,
+                  content: result.message,
+                });
+                // No establecemos orderGenerated=true, para que el loop continúe
               }
-              orderGenerated = true;
-              break;
             }
           }
 
