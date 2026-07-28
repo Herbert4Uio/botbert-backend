@@ -112,8 +112,7 @@ export class WhatsappService implements OnModuleInit {
 
     const sock = makeWASocket({
       auth: state,
-      printQRInTerminal: true,
-      browser: ['Whatbot', 'Chrome', '1.0'],
+      browser: Browsers.ubuntu('Desktop'),
       syncFullHistory: false,
       logger: pino({ level: 'info' }),
     });
@@ -146,7 +145,7 @@ export class WhatsappService implements OnModuleInit {
           setTimeout(() => this.startSession(tenantId), 5000);
         } else {
           console.log(`Sesión QR ${tenantId} finalizada por error fatal (${statusCode}). Limpiando auth...`);
-          this.authModel
+          await this.authModel
             .deleteMany({ tenantId: new Types.ObjectId(tenantId) })
             .exec();
           this.whatsappGateway.emitConnectionStatus(tenantId, 'DISCONNECTED');
