@@ -23,18 +23,6 @@ export class WhatsappController {
     return { message: 'Iniciando conexión' };
   }
 
-  @Post('connect/pairing')
-  @Roles('OWNER', 'ADMIN')
-  async connectPairing(
-    @TenantId() tenantId: string,
-    @Body('phoneNumber') phoneNumber: string,
-  ) {
-    if (!phoneNumber || phoneNumber.trim().length < 5) {
-      return { error: 'Número de teléfono inválido' };
-    }
-    await this.whatsappService.startSession(tenantId, phoneNumber.trim().replace(/[^0-9]/g, ''));
-    return { message: 'Solicitando código de vinculación' };
-  }
 
   @Post('disconnect')
   @Roles('OWNER', 'ADMIN')
