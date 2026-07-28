@@ -6,6 +6,7 @@ import makeWASocket, {
   DisconnectReason,
   initAuthCreds,
   BufferJSON,
+  fetchLatestBaileysVersion,
 } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import * as qrcode from 'qrcode-terminal';
@@ -109,11 +110,12 @@ export class WhatsappService implements OnModuleInit {
     console.log(`Iniciando sesión de WhatsApp para la empresa: ${tenantId} (QR)`);
 
     const { state, saveCreds } = await this.useMongoDBAuthState(tenantId);
+    const { version } = await fetchLatestBaileysVersion();
 
     const sock = makeWASocket({
       auth: state,
-      version: [2, 3000, 1015901307],
-      browser: Browsers.ubuntu('Desktop'),
+      version: version,
+      browser: ['Mac OS', 'Chrome', '121.0.0.0'],
       markOnlineOnConnect: false,
       logger: pino({ level: 'info' }),
     });
