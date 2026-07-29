@@ -143,7 +143,7 @@ export class WhatsappService implements OnModuleInit {
 
     console.log(`Iniciando sesión de WhatsApp para la empresa: ${tenantId} (QR)`);
 
-    const { state, saveCreds } = await useMultiFileAuthState('./baileys_auth_' + tenantId);
+    const { state, saveCreds } = await this.useMongoDBAuthState(tenantId);
     const { version } = await fetchLatestBaileysVersion();
 
     const sock = makeWASocket({
@@ -182,14 +182,16 @@ export class WhatsappService implements OnModuleInit {
           console.log(`Reconectando sesión QR ${tenantId} en 5s...`);
           setTimeout(() => this.startSession(tenantId), 5000);
         } else {
-          console.log(`Sesión QR ${tenantId} finalizada por error fatal (${statusCode}). Limpiando auth...`);
+          console.log(`Sesión QR ${tenantId} finalizada por error fatal (${statusCode}).`);
           
-          // Limpieza de MongoDB original
-          await this.authModel
-            .deleteMany({ tenantId: new Types.ObjectId(tenantId) })
-            .exec();
+          if (statusCode === DisconnectReason.loggedOut) {
+            console.log(`Limpiando auth de BD para ${tenantId} por cierre de sesión explícito.`);
+            await this.authModel
+              .deleteMany({ tenantId: new Types.ObjectId(tenantId) })
+              .exec();
+          }
           
-          // Limpieza de auth_info local
+          // Limpieza de auth_info local (por si quedó algo de versiones anteriores)
           const fs = require('fs');
           const authFolder = './baileys_auth_' + tenantId;
           if (fs.existsSync(authFolder)) {
