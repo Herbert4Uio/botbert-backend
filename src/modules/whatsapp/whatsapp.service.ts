@@ -174,7 +174,7 @@ export class WhatsappService implements OnModuleInit {
           message: error?.message,
           statusCode,
         });
-        const shouldReconnect = statusCode !== DisconnectReason.loggedOut && statusCode !== 405;
+        const shouldReconnect = statusCode !== DisconnectReason.loggedOut && statusCode !== 405 && statusCode !== 408;
         this.sockets.delete(tenantId);
         this.qrCodes.delete(tenantId);
 
