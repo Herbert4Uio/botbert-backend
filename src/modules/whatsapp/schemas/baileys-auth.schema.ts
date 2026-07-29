@@ -9,8 +9,8 @@ export class BaileysAuth extends Document {
   @Prop({ required: true })
   sessionId: string;
 
-  @Prop({ type: Object, required: true })
-  authData: Record<string, any>;
+  @Prop({ type: String, required: true })
+  authData: string;
 }
 
 export const BaileysAuthSchema = SchemaFactory.createForClass(BaileysAuth);

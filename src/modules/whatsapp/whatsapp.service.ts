@@ -233,15 +233,17 @@ export class WhatsappService implements OnModuleInit {
         tenantId: tenantObjectId,
         sessionId: parsedId,
       });
-      if (data) {
-        return JSON.parse(JSON.stringify(data.authData), BufferJSON.reviver);
+      if (data && data.authData) {
+        // Almacenado como String plano, se decodifica directamente
+        return JSON.parse(data.authData, BufferJSON.reviver);
       }
       return null;
     };
 
     const writeData = async (data: any, type: string, id: string) => {
       const parsedId = `${type}-${id}`;
-      const dataToSave = JSON.parse(JSON.stringify(data, BufferJSON.replacer));
+      // Guardar el String plano exacto para no corromper el Buffer
+      const dataToSave = JSON.stringify(data, BufferJSON.replacer);
       await this.authModel.updateOne(
         { tenantId: tenantObjectId, sessionId: parsedId },
         { $set: { authData: dataToSave } },
@@ -274,19 +276,18 @@ export class WhatsappService implements OnModuleInit {
             return data;
           },
           set: async (data: any) => {
-            const tasks: Promise<any>[] = [];
+            // EJECUCIÓN SECUENCIAL (NO Promise.all) para evitar pool exhaustion y race conditions
             for (const category in data) {
               for (const id in data[category]) {
                 const value = data[category][id];
                 const type = category;
                 if (value) {
-                  tasks.push(writeData(value, type, id));
+                  await writeData(value, type, id);
                 } else {
-                  tasks.push(removeData(type, id));
+                  await removeData(type, id);
                 }
               }
             }
-            await Promise.all(tasks);
           },
         },
       },
