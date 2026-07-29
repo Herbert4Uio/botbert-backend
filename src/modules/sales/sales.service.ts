@@ -757,24 +757,56 @@ export class SalesService implements OnModuleInit {
       { role: 'system', content: 'SYSTEM INSTRUCTION: El administrador humano ha solicitado que retomes esta conversación. Por favor lee el historial y responde al cliente de manera proactiva.' }
     ];
 
-    this.logger.log(`🤖 Forzando respuesta de IA para ${jid}`);
-    const aiMessage = await this.aiService.generateResponse(messages, tools);
-    
-    let assistantResponse = aiMessage.content;
-    
-    // Si la IA decide usar una herramienta al forzar, simplemente ejecutamos la primera iteración
-    if (aiMessage.tool_calls && aiMessage.tool_calls.length > 0) {
-       for (const toolCall of aiMessage.tool_calls) {
+    let assistantResponse = '';
+    let iterations = 0;
+    let currentTools = [...tools];
+
+    while (iterations < 5) {
+      iterations++;
+      this.logger.log(`🤖 Forzando respuesta de IA para ${jid} (Iteración ${iterations})...`);
+      const aiMessage = await this.aiService.generateResponse(messages, currentTools);
+      
+      assistantResponse = aiMessage.content;
+
+      if (aiMessage.tool_calls && aiMessage.tool_calls.length > 0) {
+        messages.push(aiMessage);
+        let orderGenerated = false;
+
+        for (const toolCall of aiMessage.tool_calls) {
           const args = JSON.parse(toolCall.function.arguments);
+          this.logger.log(`🛠️ IA invocó la herramienta al forzar: ${toolCall.function.name}`);
+
           if (toolCall.function.name === 'buscar_productos') {
             const resultText = await this.salesToolsService.handleProductSearch(args, tenantObjectId, conversation);
-            messages.push(aiMessage);
             messages.push({ role: 'tool', tool_call_id: toolCall.id, content: resultText });
-            const secondReply = await this.aiService.generateResponse(messages, tools);
-            assistantResponse = secondReply.content;
             this.intentHandlers.updatePhaseAfterSearch(conversation);
+          } else if (toolCall.function.name === 'actualizar_resumen_venta') {
+            const resultText = await this.salesToolsService.handleUpdateSummary(args, conversation);
+            messages.push({ role: 'tool', tool_call_id: toolCall.id, content: resultText });
+            currentTools = currentTools.filter((t) => t.function.name !== 'actualizar_resumen_venta');
+          } else if (toolCall.function.name === 'generar_orden') {
+            const result = await this.salesToolsService.handleGenerateOrder(
+              args, tenantObjectId, tenant, branches, customer, conversation, jid
+            );
+            if (result.success) {
+              assistantResponse = result.message;
+              this.intentHandlers.updatePhaseAfterOrder(conversation);
+              orderGenerated = true;
+              break;
+            } else {
+              messages.push({ role: 'tool', tool_call_id: toolCall.id, content: result.message });
+            }
           }
-       }
+        }
+        
+        if (orderGenerated) {
+          break;
+        } else {
+          continue;
+        }
+      } else {
+        break;
+      }
     }
 
     if (assistantResponse) {
