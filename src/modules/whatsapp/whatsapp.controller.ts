@@ -17,7 +17,7 @@ export class WhatsappController {
   }
 
   @Post('connect')
-  //@Roles('OWNER', 'ADMIN')
+  @Roles('OWNER', 'ADMIN')
   async connect(@TenantId() tenantId: string) {
     await this.whatsappService.startSession(tenantId);
     return { message: 'Iniciando conexión' };
