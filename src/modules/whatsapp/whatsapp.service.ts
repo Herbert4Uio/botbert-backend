@@ -7,6 +7,7 @@ import makeWASocket, {
   initAuthCreds,
   BufferJSON,
   fetchLatestBaileysVersion,
+  useMultiFileAuthState,
 } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import * as qrcode from 'qrcode-terminal';
@@ -102,6 +103,39 @@ export class WhatsappService implements OnModuleInit {
     this.whatsappGateway.emitConnectionStatus(tenantId, 'DISCONNECTED');
   }
 
+  public async generatePairingCode(tenantId: string, phoneNumber: string): Promise<string> {
+    console.log(`Generando pairing code para tenant ${tenantId}, número: ${phoneNumber}`);
+    
+    // Forzamos desconexión previa para evitar conflictos con sesiones corruptas
+    await this.disconnectSession(tenantId);
+    
+    // Iniciar socket (con printQR desactivado o normal, no importa, requestPairingCode sobreescribe)
+    const sock = await this.startSession(tenantId);
+    if (!sock) {
+      throw new Error('No se pudo inicializar la conexión de WhatsApp');
+    }
+
+    if (sock.authState.creds.me) {
+      throw new Error('La sesión ya está conectada, por favor desconéctate primero.');
+    }
+
+    // Baileys requiere que el socket termine de inicializarse antes de pedir el código
+    return new Promise((resolve, reject) => {
+      setTimeout(async () => {
+        try {
+          // Remover caracteres no numéricos como '+' o espacios
+          const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
+          const code = await sock.requestPairingCode(cleanPhone);
+          console.log(`[EXITO] Código de emparejamiento generado para ${cleanPhone}: ${code}`);
+          resolve(code);
+        } catch (error) {
+          console.error('Error crítico al solicitar Pairing Code:', error);
+          reject(error);
+        }
+      }, 4000); // 4 segundos de gracia para que Baileys conecte al WS
+    });
+  }
+
   public async startSession(tenantId: string, phoneNumber?: string) {
     if (this.sockets.has(tenantId)) {
       return this.sockets.get(tenantId);
@@ -109,7 +143,7 @@ export class WhatsappService implements OnModuleInit {
 
     console.log(`Iniciando sesión de WhatsApp para la empresa: ${tenantId} (QR)`);
 
-    const { state, saveCreds } = await this.useMongoDBAuthState(tenantId);
+    const { state, saveCreds } = await useMultiFileAuthState('./baileys_auth_' + tenantId);
     const { version } = await fetchLatestBaileysVersion();
 
     const sock = makeWASocket({
@@ -117,6 +151,7 @@ export class WhatsappService implements OnModuleInit {
       version: version,
       browser: ['Mac OS', 'Chrome', '121.0.0.0'],
       markOnlineOnConnect: false,
+      printQRInTerminal: true,
       logger: pino({ level: 'info' }),
     });
 
@@ -148,9 +183,19 @@ export class WhatsappService implements OnModuleInit {
           setTimeout(() => this.startSession(tenantId), 5000);
         } else {
           console.log(`Sesión QR ${tenantId} finalizada por error fatal (${statusCode}). Limpiando auth...`);
+          
+          // Limpieza de MongoDB original
           await this.authModel
             .deleteMany({ tenantId: new Types.ObjectId(tenantId) })
             .exec();
+          
+          // Limpieza de auth_info local
+          const fs = require('fs');
+          const authFolder = './baileys_auth_' + tenantId;
+          if (fs.existsSync(authFolder)) {
+            fs.rmSync(authFolder, { recursive: true, force: true });
+          }
+
           this.whatsappGateway.emitConnectionStatus(tenantId, 'DISCONNECTED');
         }
       } else if (connection === 'open') {

@@ -22,6 +22,57 @@ export class OrderService {
       .exec();
   }
 
+  async createOrder(tenantId: string, data: any, sendConfirmation: boolean) {
+    const orderData = {
+      ...data,
+      tenantId: new Types.ObjectId(tenantId),
+      isAiGenerated: false,
+    };
+    if (data.customerId) orderData.customerId = new Types.ObjectId(data.customerId);
+    if (data.branchId) orderData.branchId = new Types.ObjectId(data.branchId);
+
+    const newOrder = await this.orderModel.create(orderData);
+    const populatedOrder = await this.orderModel
+      .findById(newOrder._id)
+      .populate('customerId')
+      .populate('branchId')
+      .exec();
+
+    if (sendConfirmation && populatedOrder && populatedOrder.customerId) {
+      const customer: any = populatedOrder.customerId;
+      const jid = customer.whatsappId;
+      const message = `✅ Hola ${customer.profileName || ''}. Tu orden #${populatedOrder._id.toString().slice(-6).toUpperCase()} ha sido registrada manualmente por uno de nuestros asesores.\nTotal: $${populatedOrder.totalAmount.toFixed(2)}`;
+      
+      try {
+        await this.whatsappService.sendMessage(tenantId, jid, message);
+        this.logger.log(`Notificación de creación manual enviada al cliente ${jid}`);
+      } catch (error) {
+        this.logger.error(`Error enviando notificación de creación al cliente ${jid}`, error);
+      }
+    }
+
+    return populatedOrder;
+  }
+
+  async updateOrder(tenantId: string, orderId: string, data: any) {
+    const updateData = { ...data };
+    if (data.customerId) updateData.customerId = new Types.ObjectId(data.customerId);
+    if (data.branchId) updateData.branchId = new Types.ObjectId(data.branchId);
+    
+    return this.orderModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(orderId), tenantId: new Types.ObjectId(tenantId) },
+      updateData,
+      { new: true }
+    ).populate('customerId').populate('branchId').exec();
+  }
+
+  async deleteOrder(tenantId: string, orderId: string) {
+    return this.orderModel.findOneAndDelete({
+      _id: new Types.ObjectId(orderId),
+      tenantId: new Types.ObjectId(tenantId),
+    }).exec();
+  }
+
   async updateStatus(tenantId: string, orderId: string, status: string) {
     const order = await this.orderModel
       .findOneAndUpdate(

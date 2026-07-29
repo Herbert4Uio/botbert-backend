@@ -51,6 +51,35 @@ export class SalesController {
     );
   }
 
+  @Post('conversations/:id/message')
+  @Roles('OWNER', 'ADMIN')
+  async sendManualMessage(
+    @TenantId() tenantId: string,
+    @Param('id') conversationId: string,
+    @Body('message') message: string,
+  ) {
+    return this.salesService.sendManualMessage(tenantId, conversationId, message);
+  }
+
+  @Post('conversations/:id/inject')
+  @Roles('OWNER', 'ADMIN')
+  async injectContextMessage(
+    @TenantId() tenantId: string,
+    @Param('id') conversationId: string,
+    @Body('message') message: string,
+  ) {
+    return this.salesService.injectContextMessage(tenantId, conversationId, message);
+  }
+
+  @Post('conversations/:id/force-reply')
+  @Roles('OWNER', 'ADMIN')
+  async forceAiReply(
+    @TenantId() tenantId: string,
+    @Param('id') conversationId: string,
+  ) {
+    return this.salesService.forceAiReply(tenantId, conversationId);
+  }
+
   @Post('generate-prompt')
   @Roles('OWNER', 'ADMIN')
   async generatePrompt(@Body('businessDescription') businessDescription: string) {

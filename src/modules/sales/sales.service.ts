@@ -663,6 +663,127 @@ export class SalesService implements OnModuleInit {
     );
   }
 
+  async sendManualMessage(tenantId: string, conversationId: string, message: string) {
+    const conversation = await this.conversationModel.findOne({
+      _id: new Types.ObjectId(conversationId),
+      tenantId: new Types.ObjectId(tenantId),
+    }).populate('customerId');
+
+    if (!conversation || !conversation.customerId) {
+      throw new Error('Conversación no encontrada');
+    }
+
+    const jid = (conversation.customerId as any).whatsappId;
+    
+    // Enviamos por whatsapp
+    await this.whatsappService.sendMessage(tenantId, jid, message);
+    
+    // Guardamos en la base de datos simulando que fue el bot (assistant)
+    // Le ponemos un prefijo o lo dejamos normal, es indiferente para la IA.
+    conversation.messages.push({
+      role: 'assistant',
+      content: message,
+      timestamp: new Date(),
+    });
+    
+    await conversation.save();
+    return conversation;
+  }
+
+  async injectContextMessage(tenantId: string, conversationId: string, message: string) {
+    const conversation = await this.conversationModel.findOne({
+      _id: new Types.ObjectId(conversationId),
+      tenantId: new Types.ObjectId(tenantId),
+    }).populate('customerId');
+
+    if (!conversation) {
+      throw new Error('Conversación no encontrada');
+    }
+
+    // Guardamos en la base de datos simulando que fue el cliente (user)
+    // NO se envía nada por WhatsApp.
+    conversation.messages.push({
+      role: 'user',
+      content: message,
+      timestamp: new Date(),
+    });
+    
+    await conversation.save();
+    return conversation;
+  }
+
+  async forceAiReply(tenantId: string, conversationId: string) {
+    const conversation = await this.conversationModel.findOne({
+      _id: new Types.ObjectId(conversationId),
+      tenantId: new Types.ObjectId(tenantId),
+    }).populate('customerId');
+
+    if (!conversation || !conversation.customerId) {
+      throw new Error('Conversación no encontrada');
+    }
+
+    const tenantObjectId = new Types.ObjectId(tenantId);
+    const tenant = await this.tenantModel.findOne({ _id: tenantObjectId, isActive: true });
+    if (!tenant) throw new Error('Tenant no encontrado');
+    
+    const branches = await this.branchModel.find({ tenantId: tenantObjectId, isActive: true }).populate('cityId');
+    const customer = conversation.customerId as any;
+    const jid = customer.whatsappId;
+
+    if (conversation.isAiPaused) {
+      conversation.isAiPaused = false;
+      await conversation.save();
+    }
+
+    const currentPhase = conversation.conversationPhase || 'DISCOVERY';
+    const phaseInstructions = this.intentHandlers.getPhaseInstructions(currentPhase, tenant);
+    
+    const occasions = await this.productModel.distinct('occasions', { tenantId: tenantObjectId, isActive: true });
+    const keywords = await this.productModel.distinct('keywords', { tenantId: tenantObjectId, isActive: true });
+    const categoriesDb = await this.categoryModel.find({ tenantId: tenantObjectId, isActive: true });
+    
+    const allSuggestions = [...new Set([...occasions, ...keywords, ...categoriesDb.map(c => c.name)])].filter(Boolean);
+    const selectedSuggestions = allSuggestions.sort(() => 0.5 - Math.random()).slice(0, 3);
+
+    const fullSystemPrompt = buildSalesPrompt(tenant, branches, conversation, selectedSuggestions, phaseInstructions);
+    const tools = this.salesToolsService.getAiTools(tenant);
+
+    const MAX_HISTORY_MESSAGES = tenant.aiMemoryLimit || 10;
+    const recentMessages = conversation.messages.slice(-MAX_HISTORY_MESSAGES);
+
+    const messages: any[] = [
+      { role: 'system', content: fullSystemPrompt },
+      ...recentMessages.map((m) => ({ role: m.role, content: m.content })),
+      { role: 'system', content: 'SYSTEM INSTRUCTION: El administrador humano ha solicitado que retomes esta conversación. Por favor lee el historial y responde al cliente de manera proactiva.' }
+    ];
+
+    this.logger.log(`🤖 Forzando respuesta de IA para ${jid}`);
+    const aiMessage = await this.aiService.generateResponse(messages, tools);
+    
+    let assistantResponse = aiMessage.content;
+    
+    // Si la IA decide usar una herramienta al forzar, simplemente ejecutamos la primera iteración
+    if (aiMessage.tool_calls && aiMessage.tool_calls.length > 0) {
+       for (const toolCall of aiMessage.tool_calls) {
+          const args = JSON.parse(toolCall.function.arguments);
+          if (toolCall.function.name === 'buscar_productos') {
+            const resultText = await this.salesToolsService.handleProductSearch(args, tenantObjectId, conversation);
+            messages.push(aiMessage);
+            messages.push({ role: 'tool', tool_call_id: toolCall.id, content: resultText });
+            const secondReply = await this.aiService.generateResponse(messages, tools);
+            assistantResponse = secondReply.content;
+            this.intentHandlers.updatePhaseAfterSearch(conversation);
+          }
+       }
+    }
+
+    if (assistantResponse) {
+      await this.sendAssistantResponse(tenantId, jid, conversation, assistantResponse);
+    }
+    
+    return conversation;
+  }
+
   async generatePrompt(businessDescription: string): Promise<string> {
     return this.aiService.generateStructuredPrompt(businessDescription);
   }
