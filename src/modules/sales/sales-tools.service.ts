@@ -108,11 +108,11 @@ export class SalesToolsService {
                 description:
                   "Recomendaciones o instrucciones de entrega (o 'Ninguna' si no hay).",
               },
-              billingName: {
+              customerFullName: {
                 type: 'string',
-                description: 'Nombre completo del cliente para la factura.',
+                description: 'Nombre completo del cliente para la orden/factura. OBLIGATORIO SIEMPRE.',
               },
-              billingNit: {
+              customerNit: {
                 type: 'string',
                 description:
                   "NIT o documento del cliente (o 'S/N' si no proporcionó).",
@@ -166,7 +166,7 @@ export class SalesToolsService {
               'deliveryType',
               'customerCity',
               'branchId',
-              'billingName',
+              'customerFullName',
               'items',
             ],
           },
@@ -523,10 +523,15 @@ export class SalesToolsService {
     conversation: any,
     jid: string,
   ): Promise<{ success: boolean; message: string }> {
+    // Lógica de Fallback para el Nombre del Cliente
+    // Si la IA omite enviar el customerFullName en el JSON, usamos el que ya está guardado en el modelo
+    let finalCustomerName = args.customerFullName || customer.fullName;
+    let finalCustomerNit = args.customerNit || customer.nit;
+
     // Update Customer details if provided
-    if (args.billingName || args.billingNit) {
-      customer.fullName = args.billingName || customer.fullName;
-      customer.nit = args.billingNit || customer.nit;
+    if (args.customerFullName || args.customerNit || args.shippingAddress) {
+      customer.fullName = finalCustomerName;
+      customer.nit = finalCustomerNit;
       if (
         args.deliveryType === 'ENVIO' &&
         args.shippingAddress &&
@@ -599,14 +604,14 @@ export class SalesToolsService {
       isOrderValid = false;
       validationErrorMsg = 'El carrito de compras está vacío.';
     } else if (
-      !args.billingName ||
-      args.billingName.trim() === '' ||
-      args.billingName.toLowerCase() === 'cliente' ||
-      args.billingName.toLowerCase().includes('no propor')
+      !finalCustomerName ||
+      finalCustomerName.trim() === '' ||
+      finalCustomerName.toLowerCase() === 'cliente' ||
+      finalCustomerName.toLowerCase().includes('no propor')
     ) {
       isOrderValid = false;
       validationErrorMsg =
-        'Falta el nombre completo para la factura. Debes preguntárselo explícitamente al cliente antes de generar la orden.';
+        'Falta el nombre completo del cliente para la orden/factura. Debes preguntárselo explícitamente al cliente antes de generar la orden. Si el cliente ya te lo dijo, ASEGÚRATE de incluirlo en el campo "customerFullName" del JSON.';
     }
 
     const MAX_ITEMS_PER_PRODUCT = tenant.maxItemsPerOrder || 20;
@@ -792,8 +797,8 @@ export class SalesToolsService {
         totalAmount,
         paymentType: paymentMap[args.paymentType] || 'CASH',
         paymentTiming: timingMap[args.paymentTiming] || 'PAY_LATER',
-        billingName: args.billingName,
-        billingNit: args.billingNit,
+        billingName: finalCustomerName,
+        billingNit: finalCustomerNit,
         shippingInstructions: args.shippingInstructions,
         deliveryType: deliveryMap[args.deliveryType] || 'PICKUP',
         shippingDate: args.shippingDate,
