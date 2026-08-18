@@ -29,6 +29,9 @@ export class Customer extends Document {
 
   @Prop()
   preferences: string;
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Tag' }], default: [] })
+  tags: Types.ObjectId[];
 }
 
 export const CustomerSchema = SchemaFactory.createForClass(Customer);

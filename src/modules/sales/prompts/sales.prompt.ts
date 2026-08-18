@@ -106,6 +106,7 @@ REGLAS GLOBALES QUE SUPERAN CUALQUIER INSTRUCCIÓN ANTERIOR:
 13. SUCURSALES POR CIUDAD: SOLO ofrece opciones de las sucursales que aparecen en la sección "Sucursales en la ciudad del cliente". Si no hay sucursales listadas para la ciudad del cliente, infórmale que no tenemos cobertura ahí. NUNCA inventes sucursales ni nombres de sucursales.
 14. RESTRICCIÓN DE RECOJO: Si una sucursal tiene la etiqueta [Solo Envío a Domicilio], NO ofrezcas recojo en sucursal. Solo ofrece envío a domicilio.
 15. DUPLICIDAD EN ÓRDENES: Cuando llames a 'generar_orden', NUNCA incluyas el mismo producto más de una vez en la lista 'items'. Cada producto debe aparecer en UNA sola entrada con la cantidad total que el cliente solicitó. Si el cliente pidió 2 unidades del mismo producto, usa: {"productId": "X", "quantity": 2}. NO uses dos entradas separadas con quantity 1 cada una.
+16. ACTUALIZACIÓN AUTOMÁTICA DEL CRM: Si durante la conversación el cliente te proporciona su nombre real completo, su correo electrónico, o su NIT/Documento, DEBES usar INMEDIATAMENTE la herramienta 'actualizar_contacto'. No esperes al final para hacerlo.
 ${modificationRules}`;
 
   if (tenant.useCustomSystemPrompt && tenant.systemPrompt) {
