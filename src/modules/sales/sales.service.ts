@@ -657,7 +657,10 @@ export class SalesService implements OnModuleInit {
   async getConversations(tenantId: string) {
     return this.conversationModel
       .find({ tenantId: new Types.ObjectId(tenantId) })
-      .populate('customerId')
+      .populate({
+        path: 'customerId',
+        populate: { path: 'tags' }
+      })
       .populate('branchId')
       .sort({ updatedAt: -1 })
       .exec();

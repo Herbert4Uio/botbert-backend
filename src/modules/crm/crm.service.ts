@@ -15,6 +15,61 @@ export class CrmService {
     @InjectModel(Customer.name) private customerModel: Model<Customer>,
   ) {}
 
+  // --- DASHBOARD STATS ---
+  async getDashboardStats(tenantId: string) {
+    const tid = new Types.ObjectId(tenantId);
+    
+    // Total Customers
+    const totalCustomers = await this.customerModel.countDocuments({ tenantId: tid });
+    
+    // Deals
+    const deals = await this.dealModel.find({ tenantId: tid }).exec();
+    const pipelines = await this.pipelineModel.find({ tenantId: tid }).exec();
+    
+    const defaultPipeline = pipelines[0];
+    let lastStageId = null;
+    if (defaultPipeline && defaultPipeline.stages && defaultPipeline.stages.length > 0) {
+      // Asumimos que la última fase (por orden) es "Ganado"
+      const sortedStages = [...defaultPipeline.stages].sort((a, b) => a.order - b.order);
+      lastStageId = sortedStages[sortedStages.length - 1]._id.toString();
+    }
+
+    let totalDeals = deals.length;
+    let pipelineValue = 0;
+    let wonDeals = 0;
+    
+    const dealsByStage: Record<string, { count: number, value: number, name: string, color: string }> = {};
+    
+    // Inicializar mapa de stages
+    if (defaultPipeline) {
+      defaultPipeline.stages.forEach(stage => {
+        dealsByStage[stage._id.toString()] = { count: 0, value: 0, name: stage.name, color: stage.color || '#ccc' };
+      });
+    }
+
+    deals.forEach(deal => {
+      pipelineValue += (deal.value || 0);
+      const stageIdStr = deal.stageId?.toString();
+      
+      if (stageIdStr === lastStageId) {
+        wonDeals++;
+      }
+
+      if (stageIdStr && dealsByStage[stageIdStr]) {
+        dealsByStage[stageIdStr].count++;
+        dealsByStage[stageIdStr].value += (deal.value || 0);
+      }
+    });
+
+    return {
+      totalCustomers,
+      totalDeals,
+      pipelineValue,
+      wonDeals,
+      stages: Object.values(dealsByStage)
+    };
+  }
+
   // --- TAGS ---
   async getTags(tenantId: string) {
     return this.tagModel.find({ tenantId: new Types.ObjectId(tenantId) }).exec();

@@ -10,6 +10,12 @@ import { Roles } from '../../common/decorators/roles.decorator';
 export class CrmController {
   constructor(private readonly crmService: CrmService) {}
 
+  // --- DASHBOARD ---
+  @Get('dashboard')
+  getDashboardStats(@Request() req: any) {
+    return this.crmService.getDashboardStats(req.user.tenantId);
+  }
+
   // --- TAGS ---
   @Get('tags')
   getTags(@Request() req: any) {
