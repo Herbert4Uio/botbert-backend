@@ -15,6 +15,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { SalesModule } from './modules/sales/sales.module';
 import { CityModule } from './modules/city/city.module';
 import { HealthModule } from './health/health.module';
+import { CrmModule } from './modules/crm/crm.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { HealthModule } from './health/health.module';
     SalesModule,
     CityModule,
     HealthModule,
+    CrmModule,
   ],
   controllers: [AppController],
   providers: [AppService],

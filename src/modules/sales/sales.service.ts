@@ -366,6 +366,21 @@ export class SalesService implements OnModuleInit {
               currentTools = currentTools.filter(
                 (t) => t.function.name !== 'actualizar_resumen_venta',
               );
+            } else if (toolCall.function.name === 'actualizar_contacto') {
+              const resultText = await this.salesToolsService.handleUpdateContact(
+                args,
+                this.customerModel,
+                customer._id.toString()
+              );
+              messages.push({
+                role: 'tool',
+                tool_call_id: toolCall.id,
+                content: resultText,
+              });
+              // Removemos la herramienta para que no se vicie llamándola en loop
+              currentTools = currentTools.filter(
+                (t) => t.function.name !== 'actualizar_contacto',
+              );
             } else if (toolCall.function.name === 'generar_orden') {
               const result = await this.salesToolsService.handleGenerateOrder(
                 args,

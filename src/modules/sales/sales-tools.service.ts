@@ -191,6 +191,32 @@ export class SalesToolsService {
           },
         },
       },
+      {
+        type: 'function',
+        function: {
+          name: 'actualizar_contacto',
+          description:
+            'Actualiza la información personal del cliente en el CRM. Úsalo de inmediato en cuanto el cliente mencione su nombre real, correo electrónico, o NIT/DNI.',
+          parameters: {
+            type: 'object',
+            properties: {
+              fullName: {
+                type: 'string',
+                description: 'Nombre completo real del cliente.',
+              },
+              documentNumber: {
+                type: 'string',
+                description: 'NIT, DNI, RUT o documento de identidad.',
+              },
+              email: {
+                type: 'string',
+                description: 'Correo electrónico del cliente.',
+              },
+            },
+            required: [],
+          },
+        },
+      },
     ];
   }
 
@@ -512,6 +538,22 @@ export class SalesToolsService {
     conversation.summary = args.resumen;
     await conversation.save();
     return 'Resumen actualizado correctamente. Sigue respondiendo al cliente. NO VUELVAS A LLAMAR A ESTA HERRAMIENTA AHORA.';
+  }
+
+  async handleUpdateContact(args: any, customerModel: Model<any>, customerId: string): Promise<string> {
+    this.logger.log(`👤 Actualizando contacto en CRM para el ID: ${customerId} con datos: ${JSON.stringify(args)}`);
+    
+    const updateData: any = {};
+    if (args.fullName) updateData.fullName = args.fullName;
+    if (args.documentNumber) updateData.nit = args.documentNumber;
+    if (args.email) updateData.email = args.email;
+
+    if (Object.keys(updateData).length > 0) {
+      await customerModel.findByIdAndUpdate(customerId, { $set: updateData });
+      return 'Contacto actualizado en el CRM exitosamente. Agradécele al cliente por sus datos y continúa la conversación con naturalidad.';
+    }
+    
+    return 'No se detectaron datos válidos para actualizar.';
   }
 
   async handleGenerateOrder(
