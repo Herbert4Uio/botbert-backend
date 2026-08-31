@@ -439,7 +439,7 @@ export class SalesToolsService {
           validProducts.push({ ...p.toObject(), matchedPrice });
         } else {
           this.logger.debug(
-            `❌ Producto "${p.name}" descartado por presupuesto (Precio: $${matchedPrice}).`,
+            `❌ Producto "${p.name}" descartado por presupuesto (Precio: Bs. ${matchedPrice}).`,
           );
         }
       } else {
@@ -512,7 +512,7 @@ export class SalesToolsService {
       validProducts.forEach((p: any, index: number) => {
         const optionId = (index + 1).toString();
         const weightInfo = p.weight ? ` (Peso: ${p.weight})` : '';
-        let itemLine = `- [Opción: ${optionId}] ${p.name}${weightInfo}: $${p.matchedPrice}. ${p.description}`;
+        let itemLine = `- [Opción: ${optionId}] ${p.name}${weightInfo}: Bs. ${p.matchedPrice}. ${p.description}`;
         if (p.jaccard !== undefined && p.jaccard < 0.5) {
           itemLine += ` ⚠️ Coincidencia parcial con la búsqueda del cliente. Verifica antes de recomendar.`;
         }
@@ -829,7 +829,7 @@ export class SalesToolsService {
 
     if (isOrderValid && (orderItems.length > 0 || isCatering)) {
       this.logger.log(
-        `📦 Creando orden en BD con ${orderItems.length} items y total $${totalAmount} (Validada en DB)`,
+        `📦 Creando orden en BD con ${orderItems.length} items y total Bs. ${totalAmount} (Validada en DB)`,
       );
       await this.orderModel.create({
         tenantId: tenantObjectId,

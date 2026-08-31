@@ -41,7 +41,7 @@ export class OrderService {
     if (sendConfirmation && populatedOrder && populatedOrder.customerId) {
       const customer: any = populatedOrder.customerId;
       const jid = customer.whatsappId;
-      const message = `✅ Hola ${customer.profileName || ''}. Tu orden #${populatedOrder._id.toString().slice(-6).toUpperCase()} ha sido registrada manualmente por uno de nuestros asesores.\nTotal: $${populatedOrder.totalAmount.toFixed(2)}`;
+      const message = `✅ Hola ${customer.profileName || ''}. Tu orden #${populatedOrder._id.toString().slice(-6).toUpperCase()} ha sido registrada manualmente por uno de nuestros asesores.\nTotal: Bs. ${populatedOrder.totalAmount.toFixed(2)}`;
       
       try {
         await this.whatsappService.sendMessage(tenantId, jid, message);
