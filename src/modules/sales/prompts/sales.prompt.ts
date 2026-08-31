@@ -42,9 +42,9 @@ export function buildSalesPrompt(
   if (ctx.city) contextLines.push(`- Ciudad: ${ctx.city}`);
   if (ctx.budget) {
     const b = ctx.budget;
-    if (b.min && b.max) contextLines.push(`- Presupuesto: $${b.min} - $${b.max}`);
-    else if (b.max) contextLines.push(`- Presupuesto máximo: $${b.max}`);
-    else if (b.min) contextLines.push(`- Presupuesto mínimo: $${b.min}`);
+    if (b.min && b.max) contextLines.push(`- Presupuesto: Bs. ${b.min} - Bs. ${b.max}`);
+    else if (b.max) contextLines.push(`- Presupuesto máximo: Bs. ${b.max}`);
+    else if (b.min) contextLines.push(`- Presupuesto mínimo: Bs. ${b.min}`);
   }
   if (ctx.keywords?.length) contextLines.push(`- Preferencias: ${ctx.keywords.join(', ')}`);
   if (ctx.hasAddress) contextLines.push(`- Tiene dirección de entrega: Sí`);
