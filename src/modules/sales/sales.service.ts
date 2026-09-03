@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, OnModuleInit, Logger, Inject, forwardRef } from '@nestjs/common';
 import { buildSalesPrompt } from './prompts/sales.prompt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -15,12 +15,15 @@ import { Category } from '../catalog/schemas/category.schema';
 import { IntentClassifier } from './intent/intent-classifier.service';
 import { IntentHandlers } from './intent/intent-handlers.service';
 import { Intent, ConversationPhase } from './intent/intent.types';
+import { MessageBufferService } from './message-buffer.service';
 
 @Injectable()
 export class SalesService implements OnModuleInit {
   private readonly logger = new Logger(SalesService.name);
 
   constructor(
+    @Inject(forwardRef(() => MessageBufferService))
+    private readonly messageBufferService: MessageBufferService,
     private readonly whatsappService: WhatsappService,
     private readonly aiService: AiService,
     private readonly salesToolsService: SalesToolsService,
@@ -62,11 +65,11 @@ export class SalesService implements OnModuleInit {
     let textContent =
       msg.message?.conversation || msg.message?.extendedTextMessage?.text;
 
-    // Soporte para ubicación enviada por WhatsApp
+    // Soporte para ubicaciÃƒÂ³n enviada por WhatsApp
     if (!textContent && msg.message?.locationMessage) {
       const loc = msg.message.locationMessage;
-      const addr = loc.address ? ` - Dirección: ${loc.address}` : '';
-      textContent = `[El cliente ha compartido una ubicación GPS por WhatsApp (Lat: ${loc.degreesLatitude}, Lng: ${loc.degreesLongitude})${addr}. Asume que esta es su dirección de entrega.]`;
+      const addr = loc.address ? ` - DirecciÃƒÂ³n: ${loc.address}` : '';
+      textContent = `[El cliente ha compartido una ubicaciÃƒÂ³n GPS por WhatsApp (Lat: ${loc.degreesLatitude}, Lng: ${loc.degreesLongitude})${addr}. Asume que esta es su direcciÃƒÂ³n de entrega.]`;
     }
 
     if (!textContent) return;
@@ -74,7 +77,7 @@ export class SalesService implements OnModuleInit {
     const messageId = msg.key?.id || 'unknown';
 
     this.logger.log(
-      `📥 Recibiendo mensaje de ${jid} (Tenant: ${tenantId}): "${textContent}"`,
+      `Ã°Å¸â€œÂ¥ Recibiendo mensaje de ${jid} (Tenant: ${tenantId}): "${textContent}"`,
     );
 
     if (await this.checkRateLimitAndSendWarning(tenantId, jid)) return;
@@ -89,7 +92,7 @@ export class SalesService implements OnModuleInit {
       });
       if (!tenant) {
         this.logger.warn(
-          `❌ No hay un Tenant activo para el ID ${tenantId}. Abortando...`,
+          `Ã¢ÂÅ’ No hay un Tenant activo para el ID ${tenantId}. Abortando...`,
         );
         return;
       }
@@ -120,7 +123,53 @@ export class SalesService implements OnModuleInit {
 
       if (this.isDuplicateMessage(conversation, messageId)) return;
 
-      this.recordMessageId(conversation, messageId);
+      await this.messageBufferService.addMessage(
+        tenantObjectId,
+        customer._id,
+        conversation._id,
+        messageId,
+        textContent,
+        msg
+      );
+      this.locks.delete(jid);
+      return;
+    } catch (error: any) {
+      this.logger.error(
+        `ðŸš¨ Error procesando mensaje entrante en SalesOrchestrator:`,
+        error.stack || error,
+      );
+      this.locks.delete(jid);
+    }
+  }
+
+  async processUserTurn(lockedTurn: any) {
+    const tenantObjectId = lockedTurn.tenantId;
+    const conversationId = lockedTurn.conversationId;
+    const customerId = lockedTurn.customerId;
+
+    try {
+      const tenant = await this.tenantModel.findById(tenantObjectId);
+      if (!tenant) return;
+      const tenantId = tenant._id.toString();
+
+      const customer = await this.customerModel.findById(customerId);
+      const conversation = await this.conversationModel.findById(conversationId);
+      if (!customer || !conversation) return;
+
+      const jid = customer.whatsappId;
+
+      const branches = await this.branchModel
+        .find({ tenantId: tenantObjectId, isActive: true })
+        .populate('cityId');
+
+      // Unir todos los mensajes del turno
+      const textContent = lockedTurn.messages.map((m: any) => m.text).join('\n');
+      
+      // Registrar IDs para idempotencia
+      for (const m of lockedTurn.messages) {
+        this.recordMessageId(conversation, m.messageId);
+      }
+
       conversation.messages.push({
         role: 'user',
         content: textContent,
@@ -129,13 +178,13 @@ export class SalesService implements OnModuleInit {
 
       if (conversation.isAiPaused) {
         this.logger.log(
-          `⏸️ IA pausada para esta conversación. Ignorando mensaje.`,
+          `Ã¢ÂÂ¸Ã¯Â¸Â IA pausada para esta conversaciÃƒÂ³n. Ignorando mensaje.`,
         );
         await conversation.save();
         return;
       }
 
-      // FASE 1: Intent Router - Clasificar intención ANTES de llamar a IA
+      // FASE 1: Intent Router - Clasificar intenciÃƒÂ³n ANTES de llamar a IA
       const classification = this.intentClassifier.classify(
         textContent,
         conversation,
@@ -165,7 +214,7 @@ export class SalesService implements OnModuleInit {
         return;
       }
 
-      // Enriquecer contextSummary con entidades extraídas de CUALquier mensaje
+      // Enriquecer contextSummary con entidades extraÃƒÂ­das de CUALquier mensaje
       if (classification.extractedEntities) {
         const e = classification.extractedEntities;
         if (!conversation.contextSummary) conversation.contextSummary = {};
@@ -186,7 +235,7 @@ export class SalesService implements OnModuleInit {
         }
       }
 
-      // FASE 2: Auto-transición de fase: CITY_REQUIRED → DISCOVERY si se detectó ciudad
+      // FASE 2: Auto-transiciÃƒÂ³n de fase: CITY_REQUIRED Ã¢â€ â€™ DISCOVERY si se detectÃƒÂ³ ciudad
       if (
         conversation.conversationPhase === 'CITY_REQUIRED' &&
         conversation.contextSummary?.city
@@ -197,7 +246,7 @@ export class SalesService implements OnModuleInit {
         );
       }
 
-      // FASE 2: Verificar si debemos omitir IA y enviar respuesta automática
+      // FASE 2: Verificar si debemos omitir IA y enviar respuesta automÃƒÂ¡tica
       const currentPhase = conversation.conversationPhase || 'DISCOVERY';
       const phaseInstructions = this.intentHandlers.getPhaseInstructions(
         currentPhase,
@@ -217,7 +266,7 @@ export class SalesService implements OnModuleInit {
         );
         if (autoResponse) {
           this.logger.log(
-            `🤖 FASE 2: Enviando respuesta automática para fase ${currentPhase}`,
+            `Ã°Å¸Â¤â€“ FASE 2: Enviando respuesta automÃƒÂ¡tica para fase ${currentPhase}`,
           );
           await this.sendAssistantResponse(
             tenantId,
@@ -243,7 +292,7 @@ export class SalesService implements OnModuleInit {
       });
       const categories = categoriesDb.map((c) => c.name);
 
-      // Algoritmo de Sugerencia Dinámica (Backend)
+      // Algoritmo de Sugerencia DinÃƒÂ¡mica (Backend)
       const allSuggestions = [
         ...new Set([...occasions, ...keywords, ...categories]),
       ].filter(Boolean);
@@ -261,7 +310,7 @@ export class SalesService implements OnModuleInit {
       );
       const tools = this.salesToolsService.getAiTools(tenant);
 
-      // Construcción del Historial
+      // ConstrucciÃƒÂ³n del Historial
       const MAX_HISTORY_MESSAGES = tenant.aiMemoryLimit || 10;
       const recentMessages = conversation.messages.slice(-MAX_HISTORY_MESSAGES);
 
@@ -281,7 +330,7 @@ export class SalesService implements OnModuleInit {
       while (iterations < 5) {
         iterations++;
         this.logger.log(
-          `🤖 Iniciando iteración ${iterations} con la API de Groq...`,
+          `Ã°Å¸Â¤â€“ Iniciando iteraciÃƒÂ³n ${iterations} con la API de Groq...`,
         );
         const aiMessage = await this.aiService.generateResponse(
           messages,
@@ -289,7 +338,7 @@ export class SalesService implements OnModuleInit {
         );
 
         this.logger.debug(
-          `🤖 Respuesta Raw de IA recibida: \n${JSON.stringify(aiMessage, null, 2)}`,
+          `Ã°Å¸Â¤â€“ Respuesta Raw de IA recibida: \n${JSON.stringify(aiMessage, null, 2)}`,
         );
 
         await this.auditAiResponse(
@@ -302,27 +351,27 @@ export class SalesService implements OnModuleInit {
 
         assistantResponse = aiMessage.content;
 
-        // 🛑 INTERCEPTOR ANTI-CATÁLOGO (ALGORÍTMICO) 🛑
+        // Ã°Å¸â€ºâ€˜ INTERCEPTOR ANTI-CATÃƒÂLOGO (ALGORÃƒÂTMICO) Ã°Å¸â€ºâ€˜
         if (
           assistantResponse &&
           (!aiMessage.tool_calls || aiMessage.tool_calls.length === 0)
         ) {
           const listMatches = assistantResponse.match(/^\d+[\.)]\s/gm) || [];
           const containsMenuKeywords =
-            /categorías disponibles|nuestro catálogo|menú/i.test(
+            /categorÃƒÂ­as disponibles|nuestro catÃƒÂ¡logo|menÃƒÂº/i.test(
               assistantResponse,
             );
 
           if (listMatches.length >= 4 || containsMenuKeywords) {
             this.logger.warn(
-              `🛑 INTERCEPTOR: La IA intentó enviar un catálogo/menú largo (${listMatches.length} items). Bloqueando y forzando reintento...`,
+              `Ã°Å¸â€ºâ€˜ INTERCEPTOR: La IA intentÃƒÂ³ enviar un catÃƒÂ¡logo/menÃƒÂº largo (${listMatches.length} items). Bloqueando y forzando reintento...`,
             );
 
             messages.push({ role: 'assistant', content: assistantResponse });
             messages.push({
               role: 'system',
               content:
-                "SISTEMA ERROR CRÍTICO: Acabas de intentar enlistar un catálogo o mostrar un menú con más de 3 elementos. ESTO ESTÁ ESTRICTAMENTE PROHIBIDO. Corrige tu respuesta INMEDIATAMENTE. Borra la lista larga. Haz solo una pregunta abierta (ej. '¿Para qué ocasión buscas?') o usa la herramienta 'buscar_productos'. NO te disculpes, solo escribe la respuesta correcta.",
+                "SISTEMA ERROR CRÃƒÂTICO: Acabas de intentar enlistar un catÃƒÂ¡logo o mostrar un menÃƒÂº con mÃƒÂ¡s de 3 elementos. ESTO ESTÃƒÂ ESTRICTAMENTE PROHIBIDO. Corrige tu respuesta INMEDIATAMENTE. Borra la lista larga. Haz solo una pregunta abierta (ej. 'Ã‚Â¿Para quÃƒÂ© ocasiÃƒÂ³n buscas?') o usa la herramienta 'buscar_productos'. NO te disculpes, solo escribe la respuesta correcta.",
             });
             continue;
           }
@@ -336,7 +385,7 @@ export class SalesService implements OnModuleInit {
           for (const toolCall of aiMessage.tool_calls) {
             const args = JSON.parse(toolCall.function.arguments);
             this.logger.log(
-              `🛠️ IA invocó la herramienta: ${toolCall.function.name}`,
+              `Ã°Å¸â€ºÂ Ã¯Â¸Â IA invocÃƒÂ³ la herramienta: ${toolCall.function.name}`,
             );
 
             if (toolCall.function.name === 'buscar_productos') {
@@ -377,7 +426,7 @@ export class SalesService implements OnModuleInit {
                 tool_call_id: toolCall.id,
                 content: resultText,
               });
-              // Removemos la herramienta para que no se vicie llamándola en loop
+              // Removemos la herramienta para que no se vicie llamÃƒÂ¡ndola en loop
               currentTools = currentTools.filter(
                 (t) => t.function.name !== 'actualizar_contacto',
               );
@@ -398,13 +447,13 @@ export class SalesService implements OnModuleInit {
                 orderGenerated = true;
                 break;
               } else {
-                // Devolver el error técnico a la IA para que pueda razonarlo
+                // Devolver el error tÃƒÂ©cnico a la IA para que pueda razonarlo
                 messages.push({
                   role: 'tool',
                   tool_call_id: toolCall.id,
                   content: result.message,
                 });
-                // No establecemos orderGenerated=true, para que el loop continúe
+                // No establecemos orderGenerated=true, para que el loop continÃƒÂºe
               }
             }
           }
@@ -419,22 +468,22 @@ export class SalesService implements OnModuleInit {
         }
       }
 
-      // Auto-advance: RECOMMENDATION → LOGISTICS cuando la IA pregunta sobre logística
+      // Auto-advance: RECOMMENDATION Ã¢â€ â€™ LOGISTICS cuando la IA pregunta sobre logÃƒÂ­stica
       if (
         conversation.conversationPhase === ConversationPhase.RECOMMENDATION &&
         assistantResponse
       ) {
         const logisticsKeywords =
-          /envío|envio|recojo|pago|factura|facturación|NIT|nombre\s+completo|transferencia|QR|efectivo/i;
+          /envÃƒÂ­o|envio|recojo|pago|factura|facturaciÃƒÂ³n|NIT|nombre\s+completo|transferencia|QR|efectivo/i;
         if (logisticsKeywords.test(assistantResponse)) {
           this.logger.log(
-            `🔄 Auto-avanzando fase: RECOMMENDATION → LOGISTICS (IA preguntó sobre logística)`,
+            `Ã°Å¸â€â€ž Auto-avanzando fase: RECOMMENDATION Ã¢â€ â€™ LOGISTICS (IA preguntÃƒÂ³ sobre logÃƒÂ­stica)`,
           );
           this.intentHandlers.updatePhaseAfterProductChosen(conversation);
         }
       }
 
-      // Auto-advance: LOGISTICS → ORDER_READY cuando la IA tiene toda la info
+      // Auto-advance: LOGISTICS Ã¢â€ â€™ ORDER_READY cuando la IA tiene toda la info
       if (
         conversation.conversationPhase === ConversationPhase.LOGISTICS &&
         assistantResponse
@@ -443,7 +492,7 @@ export class SalesService implements OnModuleInit {
           /registra|genera|crea|confirmar.*orden|confirmar.*pedido|proceder.*pedido|proceder.*orden/i;
         if (orderReadyKeywords.test(assistantResponse)) {
           this.logger.log(
-            `🔄 Auto-avanzando fase: LOGISTICS → ORDER_READY`,
+            `Ã°Å¸â€â€ž Auto-avanzando fase: LOGISTICS Ã¢â€ â€™ ORDER_READY`,
           );
           conversation.conversationPhase = ConversationPhase.ORDER_READY;
         }
@@ -457,11 +506,10 @@ export class SalesService implements OnModuleInit {
       );
     } catch (error: any) {
       this.logger.error(
-        `🚨 Error CRÍTICO procesando mensaje en SalesOrchestrator:`,
+        `ðŸš¨ Error CRÃTICO procesando turno en SalesOrchestrator:`,
         error.stack || error,
       );
-    } finally {
-      this.locks.delete(jid);
+      throw error; // Lanzamos para que MessageBufferService maneje el estado de ERROR
     }
   }
 
@@ -480,13 +528,13 @@ export class SalesService implements OnModuleInit {
 
     if (timestamps.length > 10) {
       this.logger.warn(
-        `🛑 Rate limit excedido para ${jid}. Ignorando mensaje.`,
+        `Ã°Å¸â€ºâ€˜ Rate limit excedido para ${jid}. Ignorando mensaje.`,
       );
       if (timestamps.length === 11) {
         await this.whatsappService.sendMessage(
           tenantId,
           jid,
-          'Por favor, no envíes mensajes tan rápido. Espera un momento antes de continuar.',
+          'Por favor, no envÃƒÂ­es mensajes tan rÃƒÂ¡pido. Espera un momento antes de continuar.',
         );
       }
       return true;
@@ -497,7 +545,7 @@ export class SalesService implements OnModuleInit {
   private checkConcurrencyLock(jid: string): boolean {
     if (this.locks.get(jid)) {
       this.logger.warn(
-        `🔒 Bloqueo de concurrencia activo para ${jid}. Mensaje ignorado o en espera.`,
+        `Ã°Å¸â€â€™ Bloqueo de concurrencia activo para ${jid}. Mensaje ignorado o en espera.`,
       );
       return true;
     }
@@ -546,7 +594,7 @@ export class SalesService implements OnModuleInit {
       const diffHours = Math.abs(now.getTime() - updatedAt.getTime()) / 36e5;
       if (diffHours > expirationHours) {
         this.logger.log(
-          `⏰ Conversación expiró tras ${expirationHours} horas de inactividad.`,
+          `Ã¢ÂÂ° ConversaciÃƒÂ³n expirÃƒÂ³ tras ${expirationHours} horas de inactividad.`,
         );
         conversation.status = 'CLOSED';
         await conversation.save();
@@ -571,7 +619,7 @@ export class SalesService implements OnModuleInit {
       conversation.processedMessageIds.includes(messageId)
     ) {
       this.logger.warn(
-        `🔁 Mensaje duplicado detectado (${messageId}). Ignorando.`,
+        `Ã°Å¸â€Â Mensaje duplicado detectado (${messageId}). Ignorando.`,
       );
       return true;
     }
@@ -604,7 +652,7 @@ export class SalesService implements OnModuleInit {
         responsePayload: aiMessage,
       });
     } catch (e) {
-      this.logger.error('Error guardando auditoría de IA', e);
+      this.logger.error('Error guardando auditorÃƒÂ­a de IA', e);
     }
   }
 
@@ -616,7 +664,7 @@ export class SalesService implements OnModuleInit {
   ) {
     if (assistantResponse) {
       this.logger.debug(
-        `📤 Enviando respuesta final al cliente (${assistantResponse.length} caracteres)`,
+        `Ã°Å¸â€œÂ¤ Enviando respuesta final al cliente (${assistantResponse.length} caracteres)`,
       );
       await this.whatsappService.sendMessage(tenantId, jid, assistantResponse);
       conversation.messages.push({
@@ -625,7 +673,7 @@ export class SalesService implements OnModuleInit {
         timestamp: new Date(),
       });
     } else {
-      this.logger.warn(`⚠️ assistantResponse vacío. Enviando fallback.`);
+      this.logger.warn(`Ã¢Å¡Â Ã¯Â¸Â assistantResponse vacÃƒÂ­o. Enviando fallback.`);
       const fallbackMsg =
         'Estoy procesando tu solicitud, dame un momento por favor...';
       await this.whatsappService.sendMessage(tenantId, jid, fallbackMsg);
@@ -688,7 +736,7 @@ export class SalesService implements OnModuleInit {
     }).populate('customerId');
 
     if (!conversation || !conversation.customerId) {
-      throw new Error('Conversación no encontrada');
+      throw new Error('ConversaciÃƒÂ³n no encontrada');
     }
 
     const jid = (conversation.customerId as any).whatsappId;
@@ -715,11 +763,11 @@ export class SalesService implements OnModuleInit {
     }).populate('customerId');
 
     if (!conversation) {
-      throw new Error('Conversación no encontrada');
+      throw new Error('ConversaciÃƒÂ³n no encontrada');
     }
 
     // Guardamos en la base de datos simulando que fue el cliente (user)
-    // NO se envía nada por WhatsApp.
+    // NO se envÃƒÂ­a nada por WhatsApp.
     conversation.messages.push({
       role: 'user',
       content: message,
@@ -737,7 +785,7 @@ export class SalesService implements OnModuleInit {
     }).populate('customerId');
 
     if (!conversation || !conversation.customerId) {
-      throw new Error('Conversación no encontrada');
+      throw new Error('ConversaciÃƒÂ³n no encontrada');
     }
 
     const tenantObjectId = new Types.ObjectId(tenantId);
@@ -772,7 +820,7 @@ export class SalesService implements OnModuleInit {
     const messages: any[] = [
       { role: 'system', content: fullSystemPrompt },
       ...recentMessages.map((m) => ({ role: m.role, content: m.content })),
-      { role: 'system', content: 'SYSTEM INSTRUCTION: El administrador humano ha solicitado que retomes esta conversación. Por favor lee el historial y responde al cliente de manera proactiva.' }
+      { role: 'system', content: 'SYSTEM INSTRUCTION: El administrador humano ha solicitado que retomes esta conversaciÃƒÂ³n. Por favor lee el historial y responde al cliente de manera proactiva.' }
     ];
 
     let assistantResponse = '';
@@ -781,7 +829,7 @@ export class SalesService implements OnModuleInit {
 
     while (iterations < 5) {
       iterations++;
-      this.logger.log(`🤖 Forzando respuesta de IA para ${jid} (Iteración ${iterations})...`);
+      this.logger.log(`Ã°Å¸Â¤â€“ Forzando respuesta de IA para ${jid} (IteraciÃƒÂ³n ${iterations})...`);
       const aiMessage = await this.aiService.generateResponse(messages, currentTools);
       
       assistantResponse = aiMessage.content;
@@ -792,7 +840,7 @@ export class SalesService implements OnModuleInit {
 
         for (const toolCall of aiMessage.tool_calls) {
           const args = JSON.parse(toolCall.function.arguments);
-          this.logger.log(`🛠️ IA invocó la herramienta al forzar: ${toolCall.function.name}`);
+          this.logger.log(`Ã°Å¸â€ºÂ Ã¯Â¸Â IA invocÃƒÂ³ la herramienta al forzar: ${toolCall.function.name}`);
 
           if (toolCall.function.name === 'buscar_productos') {
             const resultText = await this.salesToolsService.handleProductSearch(args, tenantObjectId, conversation);
@@ -838,3 +886,6 @@ export class SalesService implements OnModuleInit {
     return this.aiService.generateStructuredPrompt(businessDescription);
   }
 }
+
+
+

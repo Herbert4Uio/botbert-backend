@@ -5,7 +5,9 @@ import {
   ConversationSchema,
 } from './schemas/conversation.schema';
 import { AiAudit, AiAuditSchema } from './schemas/ai-audit.schema';
+import { MessageBuffer, MessageBufferSchema } from './schemas/message-buffer.schema';
 import { SalesService } from './sales.service';
+import { MessageBufferService } from './message-buffer.service';
 import { WhatsappModule } from '../whatsapp/whatsapp.module';
 import { AiModule } from '../ai/ai.module';
 import { BranchModule } from '../branch/branch.module';
@@ -24,6 +26,7 @@ import { IntentHandlers } from './intent/intent-handlers.service';
     MongooseModule.forFeature([
       { name: Conversation.name, schema: ConversationSchema },
       { name: AiAudit.name, schema: AiAuditSchema },
+      { name: MessageBuffer.name, schema: MessageBufferSchema },
     ]),
     WhatsappModule,
     AiModule,
@@ -36,6 +39,7 @@ import { IntentHandlers } from './intent/intent-handlers.service';
   controllers: [SalesController],
   providers: [
     SalesService,
+    MessageBufferService,
     SalesToolsService,
     IntentClassifier,
     IntentHandlers,
